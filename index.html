@@ -107,9 +107,19 @@
         nameInput.placeholder = "Added! Add another?";
     }
 
-    function resetList() {
-        if(confirm("This will clear the list for ALL alliance members. Continue?")) {
-            membersRef.remove();
+function resetList() {
+        // Tu peux changer "NR1TOP" par le mot de passe de ton choix
+        const password = "NR1"; 
+        
+        const check = prompt("Enter Admin Password to reset the list:");
+        
+        if (check === password) {
+            if(confirm("CONFIRMED: Clear the entire list for everyone?")) {
+                membersRef.remove();
+                alert("List cleared!");
+            }
+        } else if (check !== null) {
+            alert("Wrong password. Access denied.");
         }
     }
 </script>
