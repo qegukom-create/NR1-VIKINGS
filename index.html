@@ -8,7 +8,7 @@
     
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; padding: 15px; text-align: center; }
-        .container { max-width: 800px; margin: auto; background: #16213e; padding: 20px; border-radius: 12px; border: 1px solid #e94560; box-shadow: 0 0 20px rgba(233,69,96,0.3); }
+        .container { max-width: 850px; margin: auto; background: #16213e; padding: 20px; border-radius: 12px; border: 1px solid #e94560; box-shadow: 0 0 20px rgba(233,69,96,0.3); }
         h1 { color: #e94560; text-transform: uppercase; margin-bottom: 20px; letter-spacing: 2px; }
         
         .panel { background: #0f3460; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #444; }
@@ -16,18 +16,30 @@
         
         .btn { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; text-transform: uppercase; transition: 0.3s; }
         .btn-host { background: #e94560; color: white; }
-        .btn-send { background: #4ecc71; color: white; }
+        .btn-send { background: #4ecc71; color: white; width: 120px; }
         
-        .host-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 20px; }
+        .suggest-btn { background: #1a1a2e; border: 1px solid #4ecc71; color: #4ecc71; font-size: 0.75em; padding: 5px 10px; margin: 2px; border-radius: 3px; cursor: pointer; }
+
+        .host-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-top: 20px; }
         .host-card { background: #1a1a2e; border: 2px solid #e94560; border-radius: 8px; padding: 15px; text-align: left; position: relative; }
-        .host-name { font-size: 1.2em; font-weight: bold; color: #e94560; display: block; margin-bottom: 10px; }
         
-        .progress-bg { background: #333; height: 20px; border-radius: 10px; overflow: hidden; margin: 10px 0; border: 1px solid #555; }
-        .progress-fill { background: linear-gradient(90deg, #4ecc71, #f1c40f, #e94560); height: 100%; transition: width 0.5s; width: 0%; }
+        .status-badge { font-size: 0.7em; padding: 3px 8px; border-radius: 10px; font-weight: bold; float: right; text-transform: uppercase; margin-left: 5px;}
+        .status-urgent { background: #ff4d4d; color: white; animation: pulse 1.5s infinite; }
+        .status-stable { background: #4ecc71; color: #1a1a2e; }
         
-        .full-status { color: #ff4d4d; font-weight: bold; font-size: 0.9em; text-align: center; display: block; margin-top: 5px; }
+        .delete-btn { color: #ff4d4d; cursor: pointer; font-weight: bold; margin-left: 10px; border: none; background: none; font-size: 1.2em; vertical-align: middle; }
+        .delete-btn:hover { color: #fff; }
+
+        .progress-bg { background: #333; height: 18px; border-radius: 9px; overflow: hidden; margin: 10px 0; border: 1px solid #555; }
+        .progress-fill { height: 100%; transition: width 0.5s; width: 0%; }
+        
         .reinforcer-list { font-size: 0.85em; color: #95adbe; list-style: none; padding: 0; max-height: 120px; overflow-y: auto; margin-top: 10px; border-top: 1px solid #333; padding-top: 5px; }
+        .reinforcer-item { display: flex; justify-content: space-between; align-items: center; padding: 2px 0; }
+        .remove-reinf { color: #aaa; cursor: pointer; font-size: 0.8em; padding: 0 5px; }
+        .remove-reinf:hover { color: #ff4d4d; }
+
         .btn-reset { background: #444; color: #aaa; margin-top: 40px; font-size: 0.7em; cursor: pointer; border: none; padding: 5px 10px; border-radius: 4px; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
@@ -43,17 +55,21 @@
     </div>
 
     <div class="panel">
-        <strong>🏹 SEND REINFORCEMENTS</strong><br>
+        <strong>🏹 SEND BALANCED REINFORCEMENTS</strong><br>
         <input type="text" id="r-name" placeholder="Your Name">
         <input type="number" id="r-qty" placeholder="Troops Amount">
-        <span> to </span>
-        <select id="r-target"><option value="">Select Host...</option></select>
+        <div id="suggest-ui" style="margin: 5px 0;">
+            <button class="suggest-btn" onclick="applySuggest(0.25)">25%</button>
+            <button class="suggest-btn" onclick="applySuggest(0.50)">50%</button>
+            <button class="suggest-btn" onclick="applySuggest(1.00)">Fill All</button>
+        </div>
+        <select id="r-target" onchange="syncSelectedSpace()"><option value="">Select Host...</option></select>
         <button class="btn btn-send" onclick="sendReinforce()">Send</button>
     </div>
 
     <div id="host-display" class="host-grid"></div>
 
-    <button class="btn btn-reset" onclick="resetAll()">Reset Event (Admin Only)</button>
+    <button class="btn btn-reset" onclick="resetAll()">Full Reset (Admin)</button>
 </div>
 
 <script>
@@ -71,83 +87,108 @@
     const db = firebase.database();
     const hostsRef = db.ref('viking_strategy');
 
+    let localSpaceCache = {};
+
     hostsRef.on('value', (snapshot) => {
         const data = snapshot.val();
         const display = document.getElementById('host-display');
         const select = document.getElementById('r-target');
+        const selectedValue = select.value;
         
         display.innerHTML = "";
         select.innerHTML = '<option value="">Select Host...</option>';
+        localSpaceCache = {};
         
         if (data) {
             Object.keys(data).forEach(id => {
                 const h = data[id];
-                let totalReceived = 0;
-                let reinforcersHTML = "";
+                let total = 0;
+                let rHTML = "";
                 
                 if (h.reinforcements) {
-                    Object.values(h.reinforcements).forEach(r => {
-                        totalReceived += parseInt(r.qty);
-                        reinforcersHTML += `<li>• ${r.name} (+${r.qty.toLocaleString()})</li>`;
+                    Object.keys(h.reinforcements).forEach(reinfId => {
+                        const r = h.reinforcements[reinfId];
+                        total += parseInt(r.qty);
+                        rHTML += `<li class="reinforcer-item">
+                                    <span>• ${r.name} (+${r.qty.toLocaleString()})</span>
+                                    <span class="remove-reinf" onclick="removeReinforcement('${id}', '${reinfId}')">✖</span>
+                                  </li>`;
                     });
                 }
 
-                let isFull = totalReceived >= h.capacity;
-                let percent = Math.min((totalReceived / h.capacity) * 100, 100).toFixed(0);
-                
-                // --- CONDITION : ON N'AJOUTE AU SELECTEUR QUE S'IL N'EST PAS PLEIN ---
-                if (!isFull) {
-                    select.innerHTML += `<option value="${id}">${h.name} (${(h.capacity - totalReceived).toLocaleString()} left)</option>`;
+                let left = h.capacity - total;
+                let percent = (total / h.capacity) * 100;
+                localSpaceCache[id] = left;
+
+                let statusClass = percent < 50 ? "status-urgent" : "status-stable";
+                let statusText = percent < 50 ? "Urgent Help" : "Stable";
+                if (total >= h.capacity) { statusClass = ""; statusText = "FULL"; }
+
+                if (total < h.capacity) {
+                    let opt = document.createElement("option");
+                    opt.value = id;
+                    opt.text = `${h.name} (${left.toLocaleString()} left)`;
+                    select.add(opt);
                 }
-                
+
                 display.innerHTML += `
-                    <div class="host-card" style="${isFull ? 'border-color: #555; opacity: 0.8;' : ''}">
-                        <span class="host-name">🏰 ${h.name} ${isFull ? ' (FULL)' : ''}</span>
-                        <small style="color:#95adbe">Max Capacity: ${h.capacity.toLocaleString()}</small>
+                    <div class="host-card">
+                        <button class="delete-btn" style="float:right" onclick="removeHost('${id}')" title="Remove Host">×</button>
+                        <span class="status-badge ${statusClass}">${statusText}</span>
+                        <span style="color:#e94560; font-weight:bold; font-size:1.1em;">🏰 ${h.name}</span>
                         <div class="progress-bg">
-                            <div class="progress-fill" style="width: ${percent}%; background: ${isFull ? '#555' : ''}"></div>
+                            <div class="progress-fill" style="width:${percent}%; background:${percent < 50 ? '#ff4d4d' : '#4ecc71'}"></div>
                         </div>
-                        <div style="text-align:right; font-size:0.85em; font-weight:bold;">
-                            ${totalReceived.toLocaleString()} / ${h.capacity.toLocaleString()} (${percent}%)
+                        <div style="text-align:right; font-size:0.8em; font-weight:bold;">
+                            ${total.toLocaleString()} / ${h.capacity.toLocaleString()} (${percent.toFixed(0)}%)
                         </div>
-                        ${isFull ? '<span class="full-status">⛔ NO MORE SPACE</span>' : ''}
                         <ul class="reinforcer-list">
-                            <li style="color:#e94560; font-weight:bold; margin-bottom:5px;">Reinforcements:</li>
-                            ${reinforcersHTML || '<li>No troops yet</li>'}
+                            <li style="color:#e94560; font-weight:bold; margin-bottom:3px; font-size:0.9em;">Reinforcements:</li>
+                            ${rHTML || '<li>Waiting...</li>'}
                         </ul>
                     </div>
                 `;
             });
+            select.value = selectedValue;
         }
     });
+
+    function applySuggest(ratio) {
+        const id = document.getElementById('r-target').value;
+        if (!id) return alert("Select a Host!");
+        document.getElementById('r-qty').value = Math.floor(localSpaceCache[id] * ratio);
+    }
 
     function addHost() {
         const name = document.getElementById('h-name').value.trim();
         const capa = document.getElementById('h-capa').value;
-        if (!name || !capa) return alert("Enter Name and Capacity!");
+        if (!name || !capa) return alert("Fill Name and Capacity!");
         hostsRef.push({ name: name, capacity: parseInt(capa), reinforcements: {} });
         document.getElementById('h-name').value = "";
-        document.getElementById('h-capa').value = "";
+    }
+
+    function removeHost(id) {
+        if (prompt("Admin Password to remove Host:") === "NR1") {
+            hostsRef.child(id).remove();
+        }
+    }
+
+    function removeReinforcement(hostId, reinfId) {
+        if (confirm("Cancel this reinforcement?")) {
+            hostsRef.child(hostId).child('reinforcements').child(reinfId).remove();
+        }
     }
 
     function sendReinforce() {
         const name = document.getElementById('r-name').value.trim();
         const qty = parseInt(document.getElementById('r-qty').value);
         const targetId = document.getElementById('r-target').value;
-        if (!name || !qty || !targetId) return alert("Fill all fields!");
+        if (!name || isNaN(qty) || !targetId) return alert("Fill all fields!");
 
-        hostsRef.child(targetId).once('value', (snapshot) => {
-            const h = snapshot.val();
-            let current = 0;
-            if (h.reinforcements) Object.values(h.reinforcements).forEach(r => current += parseInt(r.qty));
-            
-            if (qty > (h.capacity - current)) {
-                alert("❌ Not enough space left!");
-            } else {
-                hostsRef.child(targetId).child('reinforcements').push({ name: name, qty: qty });
-                document.getElementById('r-qty').value = "";
-            }
-        });
+        if (qty > localSpaceCache[targetId]) return alert("Not enough space!");
+
+        hostsRef.child(targetId).child('reinforcements').push({ name: name, qty: qty });
+        document.getElementById('r-qty').value = "";
     }
 
     function resetAll() {
