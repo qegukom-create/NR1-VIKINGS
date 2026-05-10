@@ -2,57 +2,61 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>NR1 - Vikings LIVE Check-in</title>
+    <title>NR1 - Vikings War Room</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; padding: 20px; text-align: center; }
-        .container { max-width: 500px; margin: auto; background: #16213e; padding: 25px; border-radius: 12px; border: 1px solid #e94560; box-shadow: 0 0 20px rgba(233, 69, 96, 0.3); }
-        h1 { color: #e94560; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 2px; }
-        .live-indicator { font-size: 0.8em; color: #4ecc71; animation: blink 2s infinite; margin-bottom: 20px; font-weight: bold; }
-        @keyframes blink { 0% {opacity: 1;} 50% {opacity: 0.3;} 100% {opacity: 1;} }
+        body { font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; padding: 15px; text-align: center; }
+        .container { max-width: 800px; margin: auto; background: #16213e; padding: 20px; border-radius: 12px; border: 1px solid #e94560; box-shadow: 0 0 20px rgba(233,69,96,0.3); }
+        h1 { color: #e94560; text-transform: uppercase; margin-bottom: 20px; letter-spacing: 2px; }
         
-        .input-group { margin-bottom: 20px; }
-        input { background: #1a1a2e; color: #fff; border: 1px solid #444; padding: 12px; border-radius: 4px; width: 80%; margin-bottom: 10px; font-size: 1em; text-align: center; }
-        input:focus { border-color: #e94560; outline: none; }
+        .panel { background: #0f3460; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #444; }
+        input, select { background: #1a1a2e; color: #fff; border: 1px solid #444; padding: 10px; border-radius: 4px; margin: 5px; font-size: 14px; }
         
-        .btn { padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; text-transform: uppercase; transition: 0.3s; }
-        .btn-join { background: #e94560; color: white; width: 85%; font-size: 1.1em; box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4); }
-        .btn-join:hover { background: #ff4d6d; transform: scale(1.02); }
+        .btn { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; text-transform: uppercase; transition: 0.3s; }
+        .btn-host { background: #e94560; color: white; }
+        .btn-send { background: #4ecc71; color: white; }
         
-        #member-list { list-style: none; padding: 0; margin-top: 25px; text-align: left; }
-        #member-list li { background: #0f3460; padding: 12px; margin-bottom: 8px; border-radius: 6px; display: flex; justify-content: space-between; border-left: 5px solid #e94560; animation: slideIn 0.3s ease-out; }
-        @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+        .host-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 20px; }
+        .host-card { background: #1a1a2e; border: 2px solid #e94560; border-radius: 8px; padding: 15px; text-align: left; position: relative; }
+        .host-name { font-size: 1.2em; font-weight: bold; color: #e94560; display: block; margin-bottom: 10px; }
         
-        .time-tag { color: #95adbe; font-size: 0.85em; }
-        .btn-reset { background: #444; color: #aaa; margin-top: 40px; font-size: 0.7em; opacity: 0.5; }
-        .btn-reset:hover { opacity: 1; background: #cc0000; color: white; }
+        .progress-bg { background: #333; height: 20px; border-radius: 10px; overflow: hidden; margin: 10px 0; border: 1px solid #555; }
+        .progress-fill { background: linear-gradient(90deg, #4ecc71, #f1c40f, #e94560); height: 100%; transition: width 0.5s; width: 0%; }
+        
+        .full-status { color: #ff4d4d; font-weight: bold; font-size: 0.9em; text-align: center; display: block; margin-top: 5px; }
+        .reinforcer-list { font-size: 0.85em; color: #95adbe; list-style: none; padding: 0; max-height: 120px; overflow-y: auto; margin-top: 10px; border-top: 1px solid #333; padding-top: 5px; }
+        .btn-reset { background: #444; color: #aaa; margin-top: 40px; font-size: 0.7em; cursor: pointer; border: none; padding: 5px 10px; border-radius: 4px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>🛡 NR1 VIKINGS</h1>
-    <div class="live-indicator">● LIVE CONNECTION ACTIVE</div>
+    <h1>🛡 NR1 VIKINGS WAR ROOM</h1>
 
-    <div class="input-group">
-        <input type="text" id="username" placeholder="Enter In-Game Name">
-        <button class="btn btn-join" onclick="checkIn()">I AM ONLINE</button>
+    <div class="panel">
+        <strong>🏰 BECOME A TARGET (HOST)</strong><br>
+        <input type="text" id="h-name" placeholder="In-Game Name">
+        <input type="number" id="h-capa" placeholder="Garrison Capacity">
+        <button class="btn btn-host" onclick="addHost()">I will be online</button>
     </div>
 
-    <div style="border-top: 1px solid #0f3460; margin-top: 20px; padding-top: 10px; font-weight: bold; color: #4ecc71;">
-        Online Members: <span id="online-count">0</span>
+    <div class="panel">
+        <strong>🏹 SEND REINFORCEMENTS</strong><br>
+        <input type="text" id="r-name" placeholder="Your Name">
+        <input type="number" id="r-qty" placeholder="Troops Amount">
+        <span> to </span>
+        <select id="r-target"><option value="">Select Host...</option></select>
+        <button class="btn btn-send" onclick="sendReinforce()">Send</button>
     </div>
 
-    <ul id="member-list">
-        </ul>
+    <div id="host-display" class="host-grid"></div>
 
-    <button class="btn btn-reset" onclick="resetList()">Reset List (Admin only)</button>
+    <button class="btn btn-reset" onclick="resetAll()">Reset Event (Admin Only)</button>
 </div>
 
 <script>
-    // Ta configuration Firebase insérée ici :
     const firebaseConfig = {
         apiKey: "AIzaSyA8edMWQreJMKrbS8MuowKZl58x7W5vfBU",
         authDomain: "nr1-vikings.firebaseapp.com",
@@ -63,64 +67,91 @@
         appId: "1:1042283854890:web:84414b7afed626191ed753"
     };
 
-    // Initialisation de Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    const membersRef = db.ref('online_members');
+    const hostsRef = db.ref('viking_strategy');
 
-    // ÉCOUTER LES CHANGEMENTS (Live Sync)
-    membersRef.on('value', (snapshot) => {
+    hostsRef.on('value', (snapshot) => {
         const data = snapshot.val();
-        const listElement = document.getElementById('member-list');
-        const countElement = document.getElementById('online-count');
-        listElement.innerHTML = "";
+        const display = document.getElementById('host-display');
+        const select = document.getElementById('r-target');
+        
+        display.innerHTML = "";
+        select.innerHTML = '<option value="">Select Host...</option>';
         
         if (data) {
-            const entries = Object.values(data);
-            countElement.innerText = entries.length;
-            // On affiche du plus récent au plus ancien
-            entries.reverse().forEach(m => {
-                listElement.innerHTML += `<li><span>${m.name}</span> <span class="time-tag">${m.time}</span></li>`;
+            Object.keys(data).forEach(id => {
+                const h = data[id];
+                let totalReceived = 0;
+                let reinforcersHTML = "";
+                
+                if (h.reinforcements) {
+                    Object.values(h.reinforcements).forEach(r => {
+                        totalReceived += parseInt(r.qty);
+                        reinforcersHTML += `<li>• ${r.name} (+${r.qty.toLocaleString()})</li>`;
+                    });
+                }
+
+                let isFull = totalReceived >= h.capacity;
+                let percent = Math.min((totalReceived / h.capacity) * 100, 100).toFixed(0);
+                
+                // --- CONDITION : ON N'AJOUTE AU SELECTEUR QUE S'IL N'EST PAS PLEIN ---
+                if (!isFull) {
+                    select.innerHTML += `<option value="${id}">${h.name} (${(h.capacity - totalReceived).toLocaleString()} left)</option>`;
+                }
+                
+                display.innerHTML += `
+                    <div class="host-card" style="${isFull ? 'border-color: #555; opacity: 0.8;' : ''}">
+                        <span class="host-name">🏰 ${h.name} ${isFull ? ' (FULL)' : ''}</span>
+                        <small style="color:#95adbe">Max Capacity: ${h.capacity.toLocaleString()}</small>
+                        <div class="progress-bg">
+                            <div class="progress-fill" style="width: ${percent}%; background: ${isFull ? '#555' : ''}"></div>
+                        </div>
+                        <div style="text-align:right; font-size:0.85em; font-weight:bold;">
+                            ${totalReceived.toLocaleString()} / ${h.capacity.toLocaleString()} (${percent}%)
+                        </div>
+                        ${isFull ? '<span class="full-status">⛔ NO MORE SPACE</span>' : ''}
+                        <ul class="reinforcer-list">
+                            <li style="color:#e94560; font-weight:bold; margin-bottom:5px;">Reinforcements:</li>
+                            ${reinforcersHTML || '<li>No troops yet</li>'}
+                        </ul>
+                    </div>
+                `;
             });
-        } else {
-            countElement.innerText = "0";
-            listElement.innerHTML = "<li style='border:none; color:#666;'>No one checked in yet...</li>";
         }
     });
 
-    function checkIn() {
-        const nameInput = document.getElementById('username');
-        const name = nameInput.value.trim();
-        if (name === "") return alert("Please enter your name!");
-
-        const now = new Date();
-        const time = now.getHours() + ":" + now.getMinutes().toString().padStart(2, '0');
-
-        // Envoi à la base de données
-        membersRef.push({
-            name: name,
-            time: time,
-            timestamp: Date.now()
-        });
-
-        nameInput.value = "";
-        nameInput.placeholder = "Added! Add another?";
+    function addHost() {
+        const name = document.getElementById('h-name').value.trim();
+        const capa = document.getElementById('h-capa').value;
+        if (!name || !capa) return alert("Enter Name and Capacity!");
+        hostsRef.push({ name: name, capacity: parseInt(capa), reinforcements: {} });
+        document.getElementById('h-name').value = "";
+        document.getElementById('h-capa').value = "";
     }
 
-function resetList() {
-        // Tu peux changer "NR1TOP" par le mot de passe de ton choix
-        const password = "NR1"; 
-        
-        const check = prompt("Enter Admin Password to reset the list:");
-        
-        if (check === password) {
-            if(confirm("CONFIRMED: Clear the entire list for everyone?")) {
-                membersRef.remove();
-                alert("List cleared!");
+    function sendReinforce() {
+        const name = document.getElementById('r-name').value.trim();
+        const qty = parseInt(document.getElementById('r-qty').value);
+        const targetId = document.getElementById('r-target').value;
+        if (!name || !qty || !targetId) return alert("Fill all fields!");
+
+        hostsRef.child(targetId).once('value', (snapshot) => {
+            const h = snapshot.val();
+            let current = 0;
+            if (h.reinforcements) Object.values(h.reinforcements).forEach(r => current += parseInt(r.qty));
+            
+            if (qty > (h.capacity - current)) {
+                alert("❌ Not enough space left!");
+            } else {
+                hostsRef.child(targetId).child('reinforcements').push({ name: name, qty: qty });
+                document.getElementById('r-qty').value = "";
             }
-        } else if (check !== null) {
-            alert("Wrong password. Access denied.");
-        }
+        });
+    }
+
+    function resetAll() {
+        if (prompt("Admin Password:") === "NR1") hostsRef.remove();
     }
 </script>
 </body>
