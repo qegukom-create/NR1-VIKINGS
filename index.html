@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>NR1 - Vikings LIVE Check-in</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; padding: 20px; text-align: center; }
+        .container { max-width: 500px; margin: auto; background: #16213e; padding: 25px; border-radius: 12px; border: 1px solid #e94560; box-shadow: 0 0 20px rgba(233, 69, 96, 0.3); }
+        h1 { color: #e94560; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 2px; }
+        .live-indicator { font-size: 0.8em; color: #4ecc71; animation: blink 2s infinite; margin-bottom: 20px; font-weight: bold; }
+        @keyframes blink { 0% {opacity: 1;} 50% {opacity: 0.3;} 100% {opacity: 1;} }
+        
+        .input-group { margin-bottom: 20px; }
+        input { background: #1a1a2e; color: #fff; border: 1px solid #444; padding: 12px; border-radius: 4px; width: 80%; margin-bottom: 10px; font-size: 1em; text-align: center; }
+        input:focus { border-color: #e94560; outline: none; }
+        
+        .btn { padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; text-transform: uppercase; transition: 0.3s; }
+        .btn-join { background: #e94560; color: white; width: 85%; font-size: 1.1em; box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4); }
+        .btn-join:hover { background: #ff4d6d; transform: scale(1.02); }
+        
+        #member-list { list-style: none; padding: 0; margin-top: 25px; text-align: left; }
+        #member-list li { background: #0f3460; padding: 12px; margin-bottom: 8px; border-radius: 6px; display: flex; justify-content: space-between; border-left: 5px solid #e94560; animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+        
+        .time-tag { color: #95adbe; font-size: 0.85em; }
+        .btn-reset { background: #444; color: #aaa; margin-top: 40px; font-size: 0.7em; opacity: 0.5; }
+        .btn-reset:hover { opacity: 1; background: #cc0000; color: white; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🛡 NR1 VIKINGS</h1>
+    <div class="live-indicator">● LIVE CONNECTION ACTIVE</div>
+
+    <div class="input-group">
+        <input type="text" id="username" placeholder="Enter In-Game Name">
+        <button class="btn btn-join" onclick="checkIn()">I AM ONLINE</button>
+    </div>
+
+    <div style="border-top: 1px solid #0f3460; margin-top: 20px; padding-top: 10px; font-weight: bold; color: #4ecc71;">
+        Online Members: <span id="online-count">0</span>
+    </div>
+
+    <ul id="member-list">
+        </ul>
+
+    <button class="btn btn-reset" onclick="resetList()">Reset List (Admin only)</button>
+</div>
+
+<script>
+    // Ta configuration Firebase insérée ici :
+    const firebaseConfig = {
+        apiKey: "AIzaSyA8edMWQreJMKrbS8MuowKZl58x7W5vfBU",
+        authDomain: "nr1-vikings.firebaseapp.com",
+        databaseURL: "https://nr1-vikings-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "nr1-vikings",
+        storageBucket: "nr1-vikings.firebasestorage.app",
+        messagingSenderId: "1042283854890",
+        appId: "1:1042283854890:web:84414b7afed626191ed753"
+    };
+
+    // Initialisation de Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const membersRef = db.ref('online_members');
+
+    // ÉCOUTER LES CHANGEMENTS (Live Sync)
+    membersRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        const listElement = document.getElementById('member-list');
+        const countElement = document.getElementById('online-count');
+        listElement.innerHTML = "";
+        
+        if (data) {
+            const entries = Object.values(data);
+            countElement.innerText = entries.length;
+            // On affiche du plus récent au plus ancien
+            entries.reverse().forEach(m => {
+                listElement.innerHTML += `<li><span>${m.name}</span> <span class="time-tag">${m.time}</span></li>`;
+            });
+        } else {
+            countElement.innerText = "0";
+            listElement.innerHTML = "<li style='border:none; color:#666;'>No one checked in yet...</li>";
+        }
+    });
+
+    function checkIn() {
+        const nameInput = document.getElementById('username');
+        const name = nameInput.value.trim();
+        if (name === "") return alert("Please enter your name!");
+
+        const now = new Date();
+        const time = now.getHours() + ":" + now.getMinutes().toString().padStart(2, '0');
+
+        // Envoi à la base de données
+        membersRef.push({
+            name: name,
+            time: time,
+            timestamp: Date.now()
+        });
+
+        nameInput.value = "";
+        nameInput.placeholder = "Added! Add another?";
+    }
+
+    function resetList() {
+        if(confirm("This will clear the list for ALL alliance members. Continue?")) {
+            membersRef.remove();
+        }
+    }
+</script>
+</body>
+</html>
