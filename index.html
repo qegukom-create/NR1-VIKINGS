@@ -10,21 +10,41 @@
     <style>
         :root { --bg: #111827; --card: #1f2937; --accent: #10b981; --primary: #3b82f6; --danger: #ef4444; --text: #f3f4f6; }
         body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
-        .container { max-width: 500px; margin: auto; position: relative; }
+        .container { max-width: 500px; margin: auto; }
         
-        /* BOUTON CONFIG SQUAD */
+        /* HEADER FLEXBOX POUR MOBILE */
+        .header-nav { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 15px;
+            padding: 5px 0;
+        }
+
+        .header-nav h1 { 
+            font-size: 1.3rem; 
+            color: var(--primary); 
+            margin: 0; 
+            font-weight: 800; 
+            letter-spacing: 1px; 
+            text-align: left;
+        }
+
         .btn-config { 
-            position: absolute; top: 0; right: 0; 
-            background: rgba(59, 130, 246, 0.1); border: 1px solid var(--primary); 
-            color: var(--primary); padding: 6px 12px; border-radius: 6px; 
-            font-size: 0.75rem; text-decoration: none; font-weight: bold;
+            background: rgba(59, 130, 246, 0.1); 
+            border: 1px solid var(--primary); 
+            color: var(--primary); 
+            padding: 8px 12px; 
+            border-radius: 8px; 
+            font-size: 0.7rem; 
+            text-decoration: none; 
+            font-weight: bold;
+            white-space: nowrap; /* Empêche le texte de passer à la ligne */
             transition: 0.3s;
         }
         .btn-config:hover { background: var(--primary); color: white; }
 
-        h1 { font-size: 1.5rem; text-align: center; color: var(--primary); margin: 20px 0 10px 0; font-weight: 800; letter-spacing: 1px; }
         .panel { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        
         label { font-size: 0.75rem; font-weight: bold; color: #9ca3af; display: block; margin-bottom: 5px; text-transform: uppercase; }
         input { background: #111827; border: 1px solid #374151; color: white; padding: 12px; width: 100%; border-radius: 8px; box-sizing: border-box; margin-bottom: 10px; font-size: 16px; }
         
@@ -58,15 +78,15 @@
 
         .reset-all { background: none; border: none; color: #4b5563; width: 100%; margin-top: 30px; font-size: 0.75rem; text-decoration: underline; cursor: pointer; }
         .order-item { border-bottom: 1px solid #374151; padding: 5px 0; display: block; }
-        .order-item:last-child { border: none; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <a href="https://qegukom-create.github.io/NR1-PLANNER/" class="btn-config">Config Squad ⚙️</a>
-    
-    <h1>NR1 🛡 VIKINGS</h1>
+    <div class="header-nav">
+        <h1>NR1 🛡 VIKINGS</h1>
+        <a href="https://qegukom-create.github.io/NR1-PLANNER/" class="btn-config">Config Squad ⚙️</a>
+    </div>
 
     <div class="panel">
         <label>BECOME HOST (400k Cap)</label>
@@ -95,6 +115,7 @@
 </div>
 
 <script>
+    // --- TON CODE FIREBASE ET LOGIQUE RESTE IDENTIQUE ---
     const firebaseConfig = {
         apiKey: "AIzaSyA8edMWQreJMKrbS8MuowKZl58x7W5vfBU",
         authDomain: "nr1-vikings.firebaseapp.com",
@@ -111,7 +132,6 @@
     const MAX_CAP = 400000;
     const SLICE = 100000;
 
-    // MODAL UTILS
     function showConfirmModal(title, text, action) {
         document.getElementById('modalTitle').innerText = title;
         document.getElementById('modalText').innerText = text;
@@ -197,7 +217,6 @@
         });
 
         let myOrders = [];
-
         while (qty > 0) {
             hostArray.sort((a, b) => a.total - b.total);
             let target = hostArray[0];
