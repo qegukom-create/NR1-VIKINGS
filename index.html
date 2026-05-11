@@ -70,15 +70,16 @@
         <div class="row">
             <div class="flex-input">
                 <label>Total Troops</label>
-                <input type="number" id="r-qty" placeholder="ex: 600000">
+                <input type="number" id="r-qty" placeholder="ex: 400000">
             </div>
-<div class="flex-select">
-    <label>Marches</label>
-    <select id="r-marches">
-        <option value="4" selected>4</option> <option value="5">5</option>
-        <option value="6">6</option>
-    </select>
-</div>
+            <div class="flex-select">
+                <label>Marches</label>
+                <select id="r-marches">
+                    <option value="4" selected>4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                </select>
+            </div>
         </div>
         
         <button class="btn btn-send" onclick="handleAutoBalance()">Dispatch Troops</button>
@@ -130,7 +131,7 @@
             html += `<span class="order-item">➡️ Send <b>${(o.qty/1000)}k</b> to 🏰 <b>${o.hostName}</b></span>`;
         });
         if(remaining > 0) {
-            html += `<br><small style="color:var(--danger)">⚠️ ${remaining.toLocaleString()} troops not sent (Max marches reached).</small>`;
+            html += `<br><small style="color:var(--danger)">⚠️ ${remaining.toLocaleString()} troops not sent (Max marches or no other hosts).</small>`;
         }
         document.getElementById('modalText').innerHTML = html;
         document.getElementById('modalButtons').innerHTML = `<button class="btn" style="background:var(--primary); color:white" onclick="closeModal()">Got it!</button>`;
@@ -171,21 +172,26 @@
     }
 
     async function handleAutoBalance() {
-        const name = document.getElementById('r-name').value.trim();
+        const rName = document.getElementById('r-name').value.trim();
         let qty = parseInt(document.getElementById('r-qty').value);
         let maxMarches = parseInt(document.getElementById('r-marches').value);
         
-        if (!name || isNaN(qty) || qty <= 0) return alert("Enter Name and Troops!");
+        if (!rName || isNaN(qty) || qty <= 0) return alert("Enter Name and Troops!");
 
         const snapshot = await hostsRef.once('value');
         const hosts = snapshot.val();
         if (!hosts) return alert("No hosts online!");
 
-        let hostArray = Object.keys(hosts).map(id => {
-            let total = 0;
-            if (hosts[id].reinforcements) Object.values(hosts[id].reinforcements).forEach(r => total += r.qty);
-            return { id: id, name: hosts[id].name, total: total };
-        });
+        // Filtrer les hôtes pour exclure celui qui a le même nom que le renforceur
+        let hostArray = Object.keys(hosts)
+            .map(id => {
+                let total = 0;
+                if (hosts[id].reinforcements) Object.values(hosts[id].reinforcements).forEach(r => total += r.qty);
+                return { id: id, name: hosts[id].name, total: total };
+            })
+            .filter(h => h.name.toLowerCase() !== rName.toLowerCase()); // EXCLUSION SOI-MÊME
+
+        if (hostArray.length === 0) return alert("No other hosts available to receive your troops!");
 
         let myOrders = [];
         let marchCount = 0;
@@ -196,7 +202,7 @@
             if (target.total >= MAX_CAP) break;
 
             let toSend = Math.min(qty, SLICE, MAX_CAP - target.total);
-            hostsRef.child(target.id).child('reinforcements').push({ name: name, qty: toSend });
+            hostsRef.child(target.id).child('reinforcements').push({ name: rName, qty: toSend });
             myOrders.push({ hostName: target.name, qty: toSend });
             
             target.total += toSend;
@@ -208,7 +214,7 @@
             showOrderModal(myOrders, qty);
             document.getElementById('r-qty').value = "";
         } else {
-            alert("Hosts are full!");
+            alert("Remaining hosts are full!");
         }
     }
 </script>
