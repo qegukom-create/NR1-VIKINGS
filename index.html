@@ -10,9 +10,19 @@
     <style>
         :root { --bg: #111827; --card: #1f2937; --accent: #10b981; --primary: #3b82f6; --danger: #ef4444; --text: #f3f4f6; }
         body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
-        .container { max-width: 500px; margin: auto; }
+        .container { max-width: 500px; margin: auto; position: relative; }
         
-        h1 { font-size: 1.5rem; text-align: center; color: var(--primary); margin: 10px 0; font-weight: 800; letter-spacing: 1px; }
+        /* BOUTON CONFIG SQUAD */
+        .btn-config { 
+            position: absolute; top: 0; right: 0; 
+            background: rgba(59, 130, 246, 0.1); border: 1px solid var(--primary); 
+            color: var(--primary); padding: 6px 12px; border-radius: 6px; 
+            font-size: 0.75rem; text-decoration: none; font-weight: bold;
+            transition: 0.3s;
+        }
+        .btn-config:hover { background: var(--primary); color: white; }
+
+        h1 { font-size: 1.5rem; text-align: center; color: var(--primary); margin: 20px 0 10px 0; font-weight: 800; letter-spacing: 1px; }
         .panel { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
         
         label { font-size: 0.75rem; font-weight: bold; color: #9ca3af; display: block; margin-bottom: 5px; text-transform: uppercase; }
@@ -54,6 +64,8 @@
 <body>
 
 <div class="container">
+    <a href="https://qegukom-create.github.io/NR1-PLANNER/" class="btn-config">Config Squad ⚙️</a>
+    
     <h1>NR1 🛡 VIKINGS</h1>
 
     <div class="panel">
@@ -125,7 +137,6 @@
 
     function closeModal() { document.getElementById('customModal').style.display = 'none'; }
 
-    // DATABASE RENDER
     hostsRef.on('value', (snapshot) => {
         const data = snapshot.val();
         const display = document.getElementById('display');
@@ -191,15 +202,9 @@
             hostArray.sort((a, b) => a.total - b.total);
             let target = hostArray[0];
             if (target.total >= MAX_CAP) break;
-
             let toSend = Math.min(qty, SLICE, MAX_CAP - target.total);
-            
-            // Push to DB
             hostsRef.child(target.id).child('reinforcements').push({ name: name, qty: toSend });
-            
-            // Record for modal
             myOrders.push({ hostName: target.name, qty: toSend });
-            
             target.total += toSend;
             qty -= toSend;
         }
@@ -207,8 +212,6 @@
         if (myOrders.length > 0) {
             showOrderModal(myOrders);
             document.getElementById('r-qty').value = "";
-        } else {
-            alert("All hosts are already full!");
         }
     }
 </script>
