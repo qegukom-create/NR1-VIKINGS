@@ -12,46 +12,22 @@
         body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
         .container { max-width: 500px; margin: auto; }
         
-        /* HEADER FLEXBOX POUR MOBILE */
-        .header-nav { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            margin-bottom: 15px;
-            padding: 5px 0;
-        }
-
-        .header-nav h1 { 
-            font-size: 1.3rem; 
-            color: var(--primary); 
-            margin: 0; 
-            font-weight: 800; 
-            letter-spacing: 1px; 
-            text-align: left;
-        }
-
-        .btn-config { 
-            background: rgba(59, 130, 246, 0.1); 
-            border: 1px solid var(--primary); 
-            color: var(--primary); 
-            padding: 8px 12px; 
-            border-radius: 8px; 
-            font-size: 0.7rem; 
-            text-decoration: none; 
-            font-weight: bold;
-            white-space: nowrap; /* Empêche le texte de passer à la ligne */
-            transition: 0.3s;
-        }
-        .btn-config:hover { background: var(--primary); color: white; }
+        .header-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 5px 0; }
+        .header-nav h1 { font-size: 1.3rem; color: var(--primary); margin: 0; font-weight: 800; letter-spacing: 1px; }
+        .btn-config { background: rgba(59, 130, 246, 0.1); border: 1px solid var(--primary); color: var(--primary); padding: 8px 12px; border-radius: 8px; font-size: 0.7rem; text-decoration: none; font-weight: bold; white-space: nowrap; transition: 0.3s; }
 
         .panel { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
         label { font-size: 0.75rem; font-weight: bold; color: #9ca3af; display: block; margin-bottom: 5px; text-transform: uppercase; }
-        input { background: #111827; border: 1px solid #374151; color: white; padding: 12px; width: 100%; border-radius: 8px; box-sizing: border-box; margin-bottom: 10px; font-size: 16px; }
+        input, select { background: #111827; border: 1px solid #374151; color: white; padding: 12px; width: 100%; border-radius: 8px; box-sizing: border-box; margin-bottom: 10px; font-size: 16px; outline: none; }
+        select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 10px center; background-size: 20px; }
         
+        .row { display: flex; gap: 10px; }
+        .row .flex-input { flex: 2; }
+        .row .flex-select { flex: 1; }
+
         .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; text-transform: uppercase; transition: 0.2s; }
         .btn-host { background: var(--primary); color: white; margin-bottom: 5px; }
         .btn-send { background: var(--accent); color: white; }
-        .btn:active { transform: scale(0.98); opacity: 0.9; }
 
         .host-card { background: var(--card); border-radius: 12px; padding: 15px; margin-top: 10px; border-left: 6px solid var(--primary); }
         .host-header { display: flex; justify-content: space-between; align-items: center; }
@@ -64,18 +40,11 @@
         .reinf-list { font-size: 0.85rem; list-style: none; padding: 0; margin: 5px 0 0 0; color: #d1d5db; }
         .reinf-item { background: rgba(0,0,0,0.2); padding: 8px 12px; border-radius: 6px; margin-top: 5px; display: flex; justify-content: space-between; align-items: center; }
         
-        .del-btn { color: #6b7280; font-size: 1.5rem; background: none; border: none; cursor: pointer; line-height: 1; }
-        
-        /* MODAL STYLE */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; box-sizing: border-box; }
-        .modal-content { background: var(--card); padding: 25px; border-radius: 16px; width: 100%; max-width: 400px; text-align: center; border: 1px solid #374151; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .modal-content { background: var(--card); padding: 25px; border-radius: 16px; width: 100%; max-width: 400px; text-align: center; border: 1px solid #374151; }
         .modal-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 10px; color: var(--primary); }
         .modal-text { color: #f3f4f6; margin-bottom: 20px; font-size: 0.95rem; text-align: left; background: #111827; padding: 15px; border-radius: 8px; line-height: 1.5; }
-        .modal-buttons { display: flex; gap: 10px; }
-        .btn-ok { background: var(--primary); color: white; flex: 1; }
-        .btn-cancel { background: #4b5563; color: white; flex: 1; }
-        .btn-confirm { background: var(--danger); color: white; flex: 1; }
-
+        
         .reset-all { background: none; border: none; color: #4b5563; width: 100%; margin-top: 30px; font-size: 0.75rem; text-decoration: underline; cursor: pointer; }
         .order-item { border-bottom: 1px solid #374151; padding: 5px 0; display: block; }
     </style>
@@ -95,14 +64,27 @@
     </div>
 
     <div class="panel">
-        <label>REINFORCEMENTS (Auto-Split)</label>
+        <label>REINFORCEMENTS</label>
         <input type="text" id="r-name" placeholder="Your Name">
-        <input type="number" id="r-qty" placeholder="Total Troops to dispatch">
+        
+        <div class="row">
+            <div class="flex-input">
+                <label>Total Troops</label>
+                <input type="number" id="r-qty" placeholder="ex: 600000">
+            </div>
+<div class="flex-select">
+    <label>Marches</label>
+    <select id="r-marches">
+        <option value="4" selected>4</option> <option value="5">5</option>
+        <option value="6">6</option>
+    </select>
+</div>
+        </div>
+        
         <button class="btn btn-send" onclick="handleAutoBalance()">Dispatch Troops</button>
     </div>
 
     <div id="display"></div>
-
     <button class="reset-all" onclick="showConfirmModal('Full Reset', 'This will wipe the entire board. Are you sure?', () => hostsRef.remove())">System Reset</button>
 </div>
 
@@ -115,7 +97,6 @@
 </div>
 
 <script>
-    // --- TON CODE FIREBASE ET LOGIQUE RESTE IDENTIQUE ---
     const firebaseConfig = {
         apiKey: "AIzaSyA8edMWQreJMKrbS8MuowKZl58x7W5vfBU",
         authDomain: "nr1-vikings.firebaseapp.com",
@@ -136,22 +117,23 @@
         document.getElementById('modalTitle').innerText = title;
         document.getElementById('modalText').innerText = text;
         const btnContainer = document.getElementById('modalButtons');
-        btnContainer.innerHTML = `
-            <button class="btn btn-cancel" onclick="closeModal()">Cancel</button>
-            <button class="btn btn-confirm" id="confirmBtn">Confirm</button>
-        `;
+        btnContainer.innerHTML = `<button class="btn" style="background:#4b5563; color:white; margin-bottom:5px" onclick="closeModal()">Cancel</button>
+                                  <button class="btn" style="background:var(--danger); color:white" id="confirmBtn">Confirm</button>`;
         document.getElementById('confirmBtn').onclick = () => { action(); closeModal(); };
         document.getElementById('customModal').style.display = 'flex';
     }
 
-    function showOrderModal(orders) {
+    function showOrderModal(orders, remaining) {
         document.getElementById('modalTitle').innerText = "🚀 DISPATCH ORDERS";
-        let html = "<strong>Your troops are assigned! Please send:</strong><br><br>";
+        let html = "<strong>Instructions:</strong><br><br>";
         orders.forEach(o => {
-            html += `<span class="order-item">➡️ <b>${(o.qty/1000)}k</b> to 🏰 <b>${o.hostName}</b></span>`;
+            html += `<span class="order-item">➡️ Send <b>${(o.qty/1000)}k</b> to 🏰 <b>${o.hostName}</b></span>`;
         });
+        if(remaining > 0) {
+            html += `<br><small style="color:var(--danger)">⚠️ ${remaining.toLocaleString()} troops not sent (Max marches reached).</small>`;
+        }
         document.getElementById('modalText').innerHTML = html;
-        document.getElementById('modalButtons').innerHTML = `<button class="btn btn-ok" onclick="closeModal()">Got it!</button>`;
+        document.getElementById('modalButtons').innerHTML = `<button class="btn" style="background:var(--primary); color:white" onclick="closeModal()">Got it!</button>`;
         document.getElementById('customModal').style.display = 'flex';
     }
 
@@ -171,44 +153,33 @@
                 Object.keys(h.reinforcements).forEach(rid => {
                     const r = h.reinforcements[rid];
                     total += r.qty;
-                    list += `<div class="reinf-item">
-                                <span>${r.name}</span> 
-                                <span>+${(r.qty/1000)}k <button style="color:var(--danger); border:none; background:none; cursor:pointer;" onclick="hostsRef.child('${id}').child('reinforcements').child('${rid}').remove()">×</button></span>
-                             </div>`;
+                    list += `<div class="reinf-item"><span>${r.name}</span> <span>+${(r.qty/1000)}k <button style="color:var(--danger); border:none; background:none; cursor:pointer;" onclick="hostsRef.child('${id}').child('reinforcements').child('${rid}').remove()">×</button></span></div>`;
                 });
             }
             const pct = (total / MAX_CAP) * 100;
-            display.innerHTML += `
-                <div class="host-card">
-                    <div class="host-header">
-                        <span class="host-name">🏰 ${h.name}</span>
-                        <button class="del-btn" onclick="showConfirmModal('Remove Host', 'Remove ${h.name}?', () => hostsRef.child('${id}').remove())">×</button>
-                    </div>
-                    <div class="progress-bar"><div class="progress-fill ${pct >= 100 ? 'full' : ''}" style="width:${Math.min(pct, 100)}%"></div></div>
-                    <div style="font-size:0.8rem; text-align:right; font-weight:bold; color:${pct >= 100 ? 'var(--danger)' : '#9ca3af'}">
-                        ${total.toLocaleString()} / ${MAX_CAP.toLocaleString()}
-                    </div>
-                    <div class="reinf-list">${list}</div>
-                </div>`;
+            display.innerHTML += `<div class="host-card">
+                <div class="host-header"><span class="host-name">🏰 ${h.name}</span><button style="border:none; background:none; color:#6b7280; font-size:1.5rem;" onclick="showConfirmModal('Remove Host', 'Remove ${h.name}?', () => hostsRef.child('${id}').remove())">×</button></div>
+                <div class="progress-bar"><div class="progress-fill ${pct >= 100 ? 'full' : ''}" style="width:${Math.min(pct, 100)}%"></div></div>
+                <div style="font-size:0.8rem; text-align:right; font-weight:bold; color:${pct >= 100 ? 'var(--danger)' : '#9ca3af'}">${total.toLocaleString()} / ${MAX_CAP.toLocaleString()}</div>
+                <div class="reinf-list">${list}</div></div>`;
         });
     });
 
     function addHost() {
-        const nameInput = document.getElementById('h-name');
-        if (nameInput.value.trim()) { 
-            hostsRef.push({ name: nameInput.value.trim(), capacity: MAX_CAP }); 
-            nameInput.value = ""; 
-        }
+        const input = document.getElementById('h-name');
+        if (input.value.trim()) { hostsRef.push({ name: input.value.trim(), capacity: MAX_CAP }); input.value = ""; }
     }
 
     async function handleAutoBalance() {
         const name = document.getElementById('r-name').value.trim();
         let qty = parseInt(document.getElementById('r-qty').value);
-        if (!name || isNaN(qty) || qty <= 0) return;
+        let maxMarches = parseInt(document.getElementById('r-marches').value);
+        
+        if (!name || isNaN(qty) || qty <= 0) return alert("Enter Name and Troops!");
 
         const snapshot = await hostsRef.once('value');
         const hosts = snapshot.val();
-        if (!hosts) return;
+        if (!hosts) return alert("No hosts online!");
 
         let hostArray = Object.keys(hosts).map(id => {
             let total = 0;
@@ -217,20 +188,27 @@
         });
 
         let myOrders = [];
-        while (qty > 0) {
+        let marchCount = 0;
+
+        while (qty > 0 && marchCount < maxMarches) {
             hostArray.sort((a, b) => a.total - b.total);
             let target = hostArray[0];
             if (target.total >= MAX_CAP) break;
+
             let toSend = Math.min(qty, SLICE, MAX_CAP - target.total);
             hostsRef.child(target.id).child('reinforcements').push({ name: name, qty: toSend });
             myOrders.push({ hostName: target.name, qty: toSend });
+            
             target.total += toSend;
             qty -= toSend;
+            marchCount++;
         }
 
         if (myOrders.length > 0) {
-            showOrderModal(myOrders);
+            showOrderModal(myOrders, qty);
             document.getElementById('r-qty').value = "";
+        } else {
+            alert("Hosts are full!");
         }
     }
 </script>
