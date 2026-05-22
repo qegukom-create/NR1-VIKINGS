@@ -21,6 +21,10 @@
         input, select { background: #111827; border: 1px solid #374151; color: white; padding: 12px; width: 100%; border-radius: 8px; box-sizing: border-box; margin-bottom: 10px; font-size: 16px; outline: none; }
         select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 10px center; background-size: 20px; }
         
+        /* Style des inputs de recherche dynamique */
+        .search-dynamic { background: #0f172a; border-color: #4b5563; }
+        .search-dynamic:focus { border-color: var(--primary); }
+
         .row { display: flex; gap: 10px; }
         .row .flex-input { flex: 2; }
         .row .flex-select { flex: 1; }
@@ -59,13 +63,13 @@
 
     <div class="panel">
         <label>BECOME HOST (400k Cap)</label>
-        <input type="text" id="h-name" placeholder="In-Game Name">
+        <input type="text" id="h-name" class="search-dynamic" placeholder="✍️ Start typing your pseudo..." list="players-list">
         <button class="btn btn-host" onclick="addHost()">I am Online</button>
     </div>
 
     <div class="panel">
         <label>REINFORCEMENTS</label>
-        <input type="text" id="r-name" placeholder="Your Name">
+        <input type="text" id="r-name" class="search-dynamic" placeholder="✍️ Start typing your pseudo..." list="players-list">
         
         <div class="row">
             <div class="flex-input">
@@ -84,6 +88,8 @@
         
         <button class="btn btn-send" onclick="handleAutoBalance()">Dispatch Troops</button>
     </div>
+
+    <datalist id="players-list"></datalist>
 
     <div id="display"></div>
     <button class="reset-all" onclick="showConfirmModal('Full Reset', 'This will wipe the entire board. Are you sure?', () => hostsRef.remove())">System Reset</button>
@@ -114,6 +120,8 @@
     const MAX_CAP = 400000;
     const SLICE = 100000;
 
+    let allMembers = {};
+
     function showConfirmModal(title, text, action) {
         document.getElementById('modalTitle').innerText = title;
         document.getElementById('modalText').innerText = text;
@@ -139,6 +147,27 @@
     }
 
     function closeModal() { document.getElementById('customModal').style.display = 'none'; }
+
+    // Alimentation de la banque de suggestions unique <datalist>
+    db.ref('alliance_database').on('value', snap => {
+        allMembers = snap.val() || {};
+        const dataList = document.getElementById('players-list');
+        
+        let html = '';
+        
+        // Trie les membres par ordre alphabétique
+        Object.keys(allMembers)
+            .sort((a,b) => allMembers[a].name.localeCompare(allMembers[b].name))
+            .forEach(id => {
+                const member = allMembers[id];
+                // Note : Pour le fonctionnement de datalist, la recherche s'effectue automatiquement 
+                // sur l'attribut "value" ET le texte visible. On met le nom brut dans value pour rester 100% compatible avec votre code.
+                const labelName = member.aliases ? `${member.name} (${member.aliases})` : member.name;
+                html += `<option value="${member.name}">${labelName}</option>`;
+            });
+            
+        dataList.innerHTML = html;
+    });
 
     hostsRef.on('value', (snapshot) => {
         const data = snapshot.val();
@@ -168,7 +197,13 @@
 
     function addHost() {
         const input = document.getElementById('h-name');
-        if (input.value.trim()) { hostsRef.push({ name: input.value.trim(), capacity: MAX_CAP }); input.value = ""; }
+        const value = input.value.trim();
+        if (value) { 
+            hostsRef.push({ name: value, capacity: MAX_CAP }); 
+            input.value = ""; // Vide le champ après ajout
+        } else {
+            alert("Please type or select a player to become Host.");
+        }
     }
 
     async function handleAutoBalance() {
@@ -176,20 +211,19 @@
         let qty = parseInt(document.getElementById('r-qty').value);
         let maxMarches = parseInt(document.getElementById('r-marches').value);
         
-        if (!rName || isNaN(qty) || qty <= 0) return alert("Enter Name and Troops!");
+        if (!rName || isNaN(qty) || qty <= 0) return alert("Type your Name and enter Troops!");
 
         const snapshot = await hostsRef.once('value');
         const hosts = snapshot.val();
         if (!hosts) return alert("No hosts online!");
 
-        // Filtrer les hôtes pour exclure celui qui a le même nom que le renforceur
         let hostArray = Object.keys(hosts)
             .map(id => {
                 let total = 0;
                 if (hosts[id].reinforcements) Object.values(hosts[id].reinforcements).forEach(r => total += r.qty);
                 return { id: id, name: hosts[id].name, total: total };
             })
-            .filter(h => h.name.toLowerCase() !== rName.toLowerCase()); // EXCLUSION SOI-MÊME
+            .filter(h => h.name.toLowerCase() !== rName.toLowerCase());
 
         if (hostArray.length === 0) return alert("No other hosts available to receive your troops!");
 
@@ -213,6 +247,7 @@
         if (myOrders.length > 0) {
             showOrderModal(myOrders, qty);
             document.getElementById('r-qty').value = "";
+            document.getElementById('r-name').value = ""; // Vide le champ après dispatch
         } else {
             alert("Remaining hosts are full!");
         }
