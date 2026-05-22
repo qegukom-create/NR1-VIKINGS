@@ -31,6 +31,7 @@
         .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; text-transform: uppercase; transition: 0.2s; }
         .btn-host { background: var(--primary); color: white; margin-bottom: 5px; }
         .btn-send { background: var(--accent); color: white; }
+        .btn-forced { background: #d97706; color: white; margin-top: 20px; font-size: 0.85rem; } /* Style pour le nouveau bouton */
 
         .host-card { background: var(--card); border-radius: 12px; padding: 15px; margin-top: 10px; border-left: 6px solid var(--primary); }
         .host-header { display: flex; justify-content: space-between; align-items: center; }
@@ -49,7 +50,7 @@
         .modal-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 10px; color: var(--primary); }
         .modal-text { color: #f3f4f6; margin-bottom: 20px; font-size: 0.95rem; text-align: left; background: #111827; padding: 15px; border-radius: 8px; line-height: 1.5; }
         
-        .reset-all { background: none; border: none; color: #4b5563; width: 100%; margin-top: 30px; font-size: 0.75rem; text-decoration: underline; cursor: pointer; }
+        .reset-all { background: none; border: none; color: #4b5563; width: 100%; margin-top: 15px; font-size: 0.75rem; text-decoration: underline; cursor: pointer; }
         .order-item { border-bottom: 1px solid #374151; padding: 5px 0; display: block; }
     </style>
 </head>
@@ -92,6 +93,10 @@
     <datalist id="players-list"></datalist>
 
     <div id="display"></div>
+    
+    <!-- Nouveau bouton ajouté ici -->
+    <button class="btn btn-forced" onclick="forcedAllOnline()">Forced All Online</button>
+    
     <button class="reset-all" onclick="showConfirmModal('Full Reset', 'This will wipe the entire board. Are you sure?', () => hostsRef.remove())">System Reset</button>
 </div>
 
@@ -149,12 +154,10 @@
 
     function closeModal() { document.getElementById('customModal').style.display = 'none'; }
 
-    // Utilitaire pour trouver un membre par son nom dans la base globale
     function findMemberByName(name) {
         return Object.values(allMembers).find(m => m.name.toLowerCase() === name.toLowerCase());
     }
 
-    // Calcul de la distance géométrique (Pythagore) entre deux points X,Y
     function calculateDistance(x1, y1, x2, y2) {
         if (x1 === undefined || y1 === undefined || x2 === undefined || y2 === undefined) return null;
         return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
@@ -195,7 +198,6 @@
                 });
             }
             
-            // Récupération des coordonnées du Host pour l'affichage de la carte
             const hostProfile = findMemberByName(h.name);
             const coordsDisplay = (hostProfile && hostProfile.x !== undefined) ? `<span class="host-coords">📍 X:${hostProfile.x} Y:${hostProfile.y}</span>` : '';
 
@@ -219,6 +221,36 @@
         }
     }
 
+    // Nouvelle fonction pour forcer tout le monde en ligne avec mot de passe
+    async function forcedAllOnline() {
+        const password = prompt("Enter control password:");
+        if (password !== "PEWN") {
+            return alert("Incorrect password. Access denied.");
+        }
+
+        const memberIds = Object.keys(allMembers);
+        if (memberIds.length === 0) {
+            return alert("No players found in the database.");
+        }
+
+        // Récupérer l'état actuel des hosts pour éviter les doublons absolus
+        const currentHostsSnap = await hostsRef.once('value');
+        const currentHosts = currentHostsSnap.val() || {};
+        const currentHostNames = Object.values(currentHosts).map(h => h.name.toLowerCase());
+
+        let addedCount = 0;
+        memberIds.forEach(id => {
+            const playerName = allMembers[id].name;
+            // On vérifie si le joueur n'est pas déjà enregistré comme Host actif
+            if (!currentHostNames.includes(playerName.toLowerCase())) {
+                hostsRef.push({ name: playerName, capacity: MAX_CAP });
+                addedCount++;
+            }
+        });
+
+        alert(`Success! ${addedCount} players have been forced online.`);
+    }
+
     async function handleAutoBalance() {
         const rName = document.getElementById('r-name').value.trim();
         let qty = parseInt(document.getElementById('r-qty').value);
@@ -230,7 +262,6 @@
         const hosts = snapshot.val();
         if (!hosts) return alert("No hosts online!");
 
-        // Trouver le profil géolocalisé du joueur qui envoie les renforts
         const senderProfile = findMemberByName(rName);
 
         let hostArray = Object.keys(hosts)
@@ -238,7 +269,6 @@
                 let total = 0;
                 if (hosts[id].reinforcements) Object.values(hosts[id].reinforcements).forEach(r => total += r.qty);
                 
-                // Trouve la position de ce Host précis
                 const hostProfile = findMemberByName(hosts[id].name);
                 let distance = null;
                 if (senderProfile && hostProfile) {
@@ -255,9 +285,6 @@
         let marchCount = 0;
 
         while (qty > 0 && marchCount < maxMarches) {
-            // MODIFICATION ALGORITHME : double niveau de tri.
-            // 1. Priorité absolue au moins rempli (h.total)
-            // 2. Si le remplissage est identique (ex: au départ), priorité à la distance la plus petite (h.distance)
             hostArray.sort((a, b) => {
                 if (a.total !== b.total) {
                     return a.total - b.total;
