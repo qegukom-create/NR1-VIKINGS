@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NR1 - Vikings Auto-Balancer</title>
+    <title>NR1 - Vikings Auto-Balancer (Proximity)</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     
@@ -21,7 +21,6 @@
         input, select { background: #111827; border: 1px solid #374151; color: white; padding: 12px; width: 100%; border-radius: 8px; box-sizing: border-box; margin-bottom: 10px; font-size: 16px; outline: none; }
         select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 10px center; background-size: 20px; }
         
-        /* Style des inputs de recherche dynamique */
         .search-dynamic { background: #0f172a; border-color: #4b5563; }
         .search-dynamic:focus { border-color: var(--primary); }
 
@@ -36,6 +35,7 @@
         .host-card { background: var(--card); border-radius: 12px; padding: 15px; margin-top: 10px; border-left: 6px solid var(--primary); }
         .host-header { display: flex; justify-content: space-between; align-items: center; }
         .host-name { font-weight: 800; font-size: 1.1rem; }
+        .host-coords { font-size: 0.75rem; color: #9ca3af; margin-left: 8px; font-weight: normal; }
         
         .progress-bar { background: #374151; height: 12px; border-radius: 6px; margin: 10px 0; overflow: hidden; }
         .progress-fill { height: 100%; transition: width 0.5s; background: var(--accent); }
@@ -95,7 +95,7 @@
     <button class="reset-all" onclick="showConfirmModal('Full Reset', 'This will wipe the entire board. Are you sure?', () => hostsRef.remove())">System Reset</button>
 </div>
 
-<div id="customModal" class="modal-overlay">
+<div id="customModal" class="overlay modal-overlay">
     <div class="modal-content">
         <div id="modalTitle" class="modal-title">Info</div>
         <div id="modalText" class="modal-text"></div>
@@ -134,9 +134,10 @@
 
     function showOrderModal(orders, remaining) {
         document.getElementById('modalTitle').innerText = "🚀 DISPATCH ORDERS";
-        let html = "<strong>Instructions:</strong><br><br>";
+        let html = "<strong>Instructions (Sorted by closest):</strong><br><br>";
         orders.forEach(o => {
-            html += `<span class="order-item">➡️ Send <b>${(o.qty/1000)}k</b> to 🏰 <b>${o.hostName}</b></span>`;
+            const distText = o.distance !== null ? ` (<span style="color:var(--accent)">Dist: ${o.distance.toFixed(1)}</span>)` : '';
+            html += `<span class="order-item">➡️ Send <b>${(o.qty/1000)}k</b> to 🏰 <b>${o.hostName}</b>${distText}</span>`;
         });
         if(remaining > 0) {
             html += `<br><small style="color:var(--danger)">⚠️ ${remaining.toLocaleString()} troops not sent (Max marches or no other hosts).</small>`;
@@ -148,21 +149,28 @@
 
     function closeModal() { document.getElementById('customModal').style.display = 'none'; }
 
-    // Alimentation de la banque de suggestions unique <datalist>
+    // Utilitaire pour trouver un membre par son nom dans la base globale
+    function findMemberByName(name) {
+        return Object.values(allMembers).find(m => m.name.toLowerCase() === name.toLowerCase());
+    }
+
+    // Calcul de la distance géométrique (Pythagore) entre deux points X,Y
+    function calculateDistance(x1, y1, x2, y2) {
+        if (x1 === undefined || y1 === undefined || x2 === undefined || y2 === undefined) return null;
+        return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+    }
+
     db.ref('alliance_database').on('value', snap => {
         allMembers = snap.val() || {};
         const dataList = document.getElementById('players-list');
-        
         let html = '';
         
-        // Trie les membres par ordre alphabétique
         Object.keys(allMembers)
             .sort((a,b) => allMembers[a].name.localeCompare(allMembers[b].name))
             .forEach(id => {
                 const member = allMembers[id];
-                // Note : Pour le fonctionnement de datalist, la recherche s'effectue automatiquement 
-                // sur l'attribut "value" ET le texte visible. On met le nom brut dans value pour rester 100% compatible avec votre code.
-                const labelName = member.aliases ? `${member.name} (${member.aliases})` : member.name;
+                const coordsText = (member.x !== undefined && member.y !== undefined) ? ` [X:${member.x}, Y:${member.y}]` : '';
+                const labelName = member.aliases ? `${member.name} (${member.aliases})${coordsText}` : `${member.name}${coordsText}`;
                 html += `<option value="${member.name}">${labelName}</option>`;
             });
             
@@ -186,9 +194,14 @@
                     list += `<div class="reinf-item"><span>${r.name}</span> <span>+${(r.qty/1000)}k <button style="color:var(--danger); border:none; background:none; cursor:pointer;" onclick="hostsRef.child('${id}').child('reinforcements').child('${rid}').remove()">×</button></span></div>`;
                 });
             }
+            
+            // Récupération des coordonnées du Host pour l'affichage de la carte
+            const hostProfile = findMemberByName(h.name);
+            const coordsDisplay = (hostProfile && hostProfile.x !== undefined) ? `<span class="host-coords">📍 X:${hostProfile.x} Y:${hostProfile.y}</span>` : '';
+
             const pct = (total / MAX_CAP) * 100;
             display.innerHTML += `<div class="host-card">
-                <div class="host-header"><span class="host-name">🏰 ${h.name}</span><button style="border:none; background:none; color:#6b7280; font-size:1.5rem;" onclick="showConfirmModal('Remove Host', 'Remove ${h.name}?', () => hostsRef.child('${id}').remove())">×</button></div>
+                <div class="host-header"><span class="host-name">🏰 ${h.name}${coordsDisplay}</span><button style="border:none; background:none; color:#6b7280; font-size:1.5rem;" onclick="showConfirmModal('Remove Host', 'Remove ${h.name}?', () => hostsRef.child('${id}').remove())">×</button></div>
                 <div class="progress-bar"><div class="progress-fill ${pct >= 100 ? 'full' : ''}" style="width:${Math.min(pct, 100)}%"></div></div>
                 <div style="font-size:0.8rem; text-align:right; font-weight:bold; color:${pct >= 100 ? 'var(--danger)' : '#9ca3af'}">${total.toLocaleString()} / ${MAX_CAP.toLocaleString()}</div>
                 <div class="reinf-list">${list}</div></div>`;
@@ -200,7 +213,7 @@
         const value = input.value.trim();
         if (value) { 
             hostsRef.push({ name: value, capacity: MAX_CAP }); 
-            input.value = ""; // Vide le champ après ajout
+            input.value = "";
         } else {
             alert("Please type or select a player to become Host.");
         }
@@ -217,11 +230,22 @@
         const hosts = snapshot.val();
         if (!hosts) return alert("No hosts online!");
 
+        // Trouver le profil géolocalisé du joueur qui envoie les renforts
+        const senderProfile = findMemberByName(rName);
+
         let hostArray = Object.keys(hosts)
             .map(id => {
                 let total = 0;
                 if (hosts[id].reinforcements) Object.values(hosts[id].reinforcements).forEach(r => total += r.qty);
-                return { id: id, name: hosts[id].name, total: total };
+                
+                // Trouve la position de ce Host précis
+                const hostProfile = findMemberByName(hosts[id].name);
+                let distance = null;
+                if (senderProfile && hostProfile) {
+                    distance = calculateDistance(senderProfile.x, senderProfile.y, hostProfile.x, hostProfile.y);
+                }
+
+                return { id: id, name: hosts[id].name, total: total, distance: distance };
             })
             .filter(h => h.name.toLowerCase() !== rName.toLowerCase());
 
@@ -231,13 +255,25 @@
         let marchCount = 0;
 
         while (qty > 0 && marchCount < maxMarches) {
-            hostArray.sort((a, b) => a.total - b.total);
+            // MODIFICATION ALGORITHME : double niveau de tri.
+            // 1. Priorité absolue au moins rempli (h.total)
+            // 2. Si le remplissage est identique (ex: au départ), priorité à la distance la plus petite (h.distance)
+            hostArray.sort((a, b) => {
+                if (a.total !== b.total) {
+                    return a.total - b.total;
+                }
+                if (a.distance !== null && b.distance !== null) {
+                    return a.distance - b.distance; 
+                }
+                return 0;
+            });
+
             let target = hostArray[0];
             if (target.total >= MAX_CAP) break;
 
             let toSend = Math.min(qty, SLICE, MAX_CAP - target.total);
             hostsRef.child(target.id).child('reinforcements').push({ name: rName, qty: toSend });
-            myOrders.push({ hostName: target.name, qty: toSend });
+            myOrders.push({ hostName: target.name, qty: toSend, distance: target.distance });
             
             target.total += toSend;
             qty -= toSend;
@@ -247,7 +283,7 @@
         if (myOrders.length > 0) {
             showOrderModal(myOrders, qty);
             document.getElementById('r-qty').value = "";
-            document.getElementById('r-name').value = ""; // Vide le champ après dispatch
+            document.getElementById('r-name').value = "";
         } else {
             alert("Remaining hosts are full!");
         }
