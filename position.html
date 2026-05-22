@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NR1 - Vikings Map Config</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <style>
+        :root { --bg: #111827; --card: #1f2937; --accent: #10b981; --primary: #3b82f6; --danger: #ef4444; --text: #f3f4f6; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+        
+        .header-nav { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px solid #374151; flex-shrink: 0; margin-bottom: 10px; }
+        .header-nav h1 { font-size: 1.2rem; color: var(--primary); margin: 0; font-weight: 800; }
+        .btn-back { background: rgba(16, 185, 129, 0.1); border: 1px solid var(--accent); color: var(--accent); padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; text-decoration: none; font-weight: bold; }
+
+        /* Style de la zone de recherche dynamique */
+        .search-container { position: relative; margin-bottom: 10px; flex-shrink: 0; }
+        .search-input { width: 100%; background: var(--card); border: 1px solid #374151; color: white; padding: 10px; border-radius: 6px; outline: none; font-size: 0.9rem; box-sizing: border-box; }
+        .search-input:focus { border-color: var(--primary); }
+        .search-results { position: absolute; top: 100%; left: 0; right: 0; background: #1f2937; border: 1px solid #374151; border-top: none; border-radius: 0 0 6px 6px; max-height: 150px; overflow-y: auto; z-index: 10; display: none; }
+        .search-item { padding: 8px 12px; cursor: pointer; font-size: 0.85rem; border-bottom: 1px solid #111827; }
+        .search-item:hover { background: #374151; color: var(--primary); }
+
+        .meta-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; flex-shrink: 0; }
+        .counter { font-size: 0.8rem; color: #9ca3af; }
+
+        .map-container { flex-grow: 1; position: relative; background: #0b0f19; border: 2px solid #374151; border-radius: 8px; overflow: hidden; margin-bottom: 10px; }
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: grab; }
+        canvas:active { cursor: grabbing; }
+
+        .controls-info { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 8px; border-radius: 4px; font-size: 0.75rem; pointer-events: none; line-height: 1.4; }
+    </style>
+</head>
+<body>
+
+<div class="header-nav">
+    <h1>NR1 🗺️ ALLIANCE MAP PLANNER</h1>
+    <a href="index.html" class="btn-back">⬅️ Auto-Balancer</a>
+</div>
+
+<div class="search-container">
+    <input type="text" id="mapSearch" class="search-input" placeholder="🔍 Search a player by name or alias..." oninput="handleSearch(this.value)">
+    <div id="searchResults" class="search-results"></div>
+</div>
+
+<div class="meta-info">
+    <div class="counter" id="member-count">Players on map: 0 / 100</div>
+</div>
+
+<div class="map-container">
+    <canvas id="mapCanvas"></canvas>
+    <div class="controls-info">
+        🖱️ <b>Left Click & Drag:</b> Move Map / Move Pastille<br>
+        📜 <b>Mouse Wheel:</b> Zoom In / Out<br>
+        💡 <i>Double-click a pastille to delete a player</i>
+    </div>
+</div>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyA8edMWQreJMKrbS8MuowKZl58x7W5vfBU",
+        authDomain: "nr1-vikings.firebaseapp.com",
+        databaseURL: "https://nr1-vikings-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "nr1-vikings",
+        storageBucket: "nr1-vikings.firebasestorage.app",
+        messagingSenderId: "1042283854890",
+        appId: "1:1042283854890:web:84414b7afed626191ed753"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const allianceRef = db.ref('alliance_database');
+
+    const canvas = document.getElementById('mapCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let allMembers = {};
+    let selectedPlayerId = null;
+    let isDraggingMap = false;
+    let isCameraInitialized = false;
+
+    let cameraX = 0, cameraY = 0; 
+    let zoom = 1; 
+    let startDragX = 0, startDragY = 0;
+
+    const MAP_SIZE = 1000; 
+    const DOT_RADIUS = 8;
+
+    function resizeCanvas() {
+        canvas.width = canvas.parentElement.clientWidth;
+        canvas.height = canvas.parentElement.clientHeight;
+        
+        const minZoomX = canvas.width / MAP_SIZE;
+        const minZoomY = canvas.height / MAP_SIZE;
+        const idealMinZoom = Math.max(minZoomX, minZoomY);
+        
+        if (zoom < idealMinZoom || !isCameraInitialized) {
+            zoom = idealMinZoom;
+        }
+
+        if (!isCameraInitialized && canvas.width > 0) {
+            centerCamera();
+        }
+        
+        constrainCamera();
+        draw();
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    function centerCamera() {
+        cameraX = canvas.width / 2 - (MAP_SIZE / 2) * zoom;
+        cameraY = canvas.height / 2 - (MAP_SIZE / 2) * zoom;
+        isCameraInitialized = true;
+    }
+
+    function constrainCamera() {
+        const worldWidthOnScreen = MAP_SIZE * zoom;
+        const worldHeightOnScreen = MAP_SIZE * zoom;
+
+        if (worldWidthOnScreen <= canvas.width) {
+            cameraX = (canvas.width - worldWidthOnScreen) / 2;
+        } else {
+            cameraX = Math.min(0, Math.max(canvas.width - worldWidthOnScreen, cameraX));
+        }
+
+        if (worldHeightOnScreen <= canvas.height) {
+            cameraY = (canvas.height - worldHeightOnScreen) / 2;
+        } else {
+            cameraY = Math.min(0, Math.max(canvas.height - worldHeightOnScreen, cameraY));
+        }
+    }
+
+    allianceRef.on('value', snap => {
+        const rawData = snap.val() || {};
+        allMembers = {};
+
+        const sortedIds = Object.keys(rawData).sort((a, b) => {
+            return rawData[a].name.localeCompare(rawData[b].name);
+        });
+
+        const totalPlayers = sortedIds.length;
+        document.getElementById('member-count').innerText = `Players on map: ${totalPlayers} / 100`;
+
+        const playersPerLine = Math.max(15, Math.ceil(totalPlayers / 3));
+
+        sortedIds.forEach((id, index) => {
+            const m = rawData[id];
+            
+            if (m.x === undefined || m.y === undefined || m.x === null || m.y === null) {
+                const row = Math.floor(index / playersPerLine); 
+                const col = index % playersPerLine;            
+
+                m.x = 60 + (col * 55); 
+                m.y = 60 + (row * 60);
+
+                if (m.x > 940) {
+                    m.x = 60 + ((col % 15) * 55);
+                    m.y += 180;
+                }
+            }
+
+            allMembers[id] = m;
+        });
+
+        if (!isCameraInitialized && canvas.width > 0) {
+            const minZoomX = canvas.width / MAP_SIZE;
+            const minZoomY = canvas.height / MAP_SIZE;
+            zoom = Math.max(minZoomX, minZoomY);
+            centerCamera();
+        }
+        draw();
+    });
+
+    // LOGIQUE DE RECHERCHE DYNAMIQUE
+    function handleSearch(val) {
+        const container = document.getElementById('searchResults');
+        container.innerHTML = '';
+        
+        if (!val.trim()) {
+            container.style.display = 'none';
+            return;
+        }
+
+        const query = val.toLowerCase();
+        let matches = 0;
+
+        Object.keys(allMembers).forEach(id => {
+            const m = allMembers[id];
+            const nameMatch = m.name.toLowerCase().includes(query);
+            const aliasMatch = m.aliases && m.aliases.toLowerCase().includes(query);
+
+            if (nameMatch || aliasMatch) {
+                matches++;
+                const div = document.createElement('div');
+                div.className = 'search-item';
+                div.textContent = m.aliases ? `${m.name} (${m.aliases})` : m.name;
+                div.onclick = () => selectAndFocusPlayer(id);
+                container.appendChild(div);
+            }
+        });
+
+        container.style.display = matches > 0 ? 'block' : 'none';
+    }
+
+    function selectAndFocusPlayer(id) {
+        selectedPlayerId = id;
+        const m = allMembers[id];
+        
+        // Cacher la liste de recherche et vider le champ
+        document.getElementById('searchResults').style.display = 'none';
+        document.getElementById('mapSearch').value = '';
+
+        // Centrer la caméra sur le joueur sélectionné
+        zoom = 1.8; // Applique un zoom confortable sur la cible
+        cameraX = canvas.width / 2 - m.x * zoom;
+        cameraY = canvas.height / 2 - m.y * zoom;
+        
+        constrainCamera();
+        draw();
+    }
+
+    function gameToScreen(gx, gy) {
+        return {
+            x: gx * zoom + cameraX,
+            y: gy * zoom + cameraY
+        };
+    }
+
+    function screenToGame(sx, sy) {
+        return {
+            x: Math.round((sx - cameraX) / zoom),
+            y: Math.round((sy - cameraY) / zoom)
+        };
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const topLeft = gameToScreen(0, 0);
+        const bottomRight = gameToScreen(MAP_SIZE, MAP_SIZE);
+        ctx.fillStyle = '#0b0f19';
+        ctx.fillRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+
+        ctx.strokeStyle = '#1e2937';
+        ctx.lineWidth = 1;
+        let step = 100 * zoom;
+        let startX = cameraX % step;
+        let startY = cameraY % step;
+        
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+        ctx.clip();
+
+        for (let x = startX; x < canvas.width; x += step) {
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+        }
+        for (let y = startY; y < canvas.height; y += step) {
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+        }
+        ctx.restore();
+
+        ctx.strokeStyle = 'var(--primary)';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+
+        Object.keys(allMembers).forEach(id => {
+            const m = allMembers[id];
+            const pos = gameToScreen(m.x, m.y);
+
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, DOT_RADIUS, 0, Math.PI * 2);
+            
+            // Correction de la couleur : Bleu vif si sélectionné, sinon vert accent
+            ctx.fillStyle = (id === selectedPlayerId) ? '#3b82f6' : 'var(--accent)';
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 11px sans-serif';
+            ctx.textAlign = 'center';
+            const displayName = m.aliases ? `${m.name} (${m.aliases})` : m.name;
+            ctx.fillText(displayName, pos.x, pos.y - 12);
+
+            ctx.fillStyle = '#9ca3af';
+            ctx.font = '9px sans-serif';
+            ctx.fillText(`[${m.x}, ${m.y}]`, pos.x, pos.y + 22);
+        });
+    }
+
+    canvas.addEventListener('mousedown', e => {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        // Fermer le menu de recherche si on clique sur la carte
+        document.getElementById('searchResults').style.display = 'none';
+
+        selectedPlayerId = null;
+        Object.keys(allMembers).forEach(id => {
+            const m = allMembers[id];
+            const pos = gameToScreen(m.x, m.y);
+            const dist = Math.hypot(mouseX - pos.x, mouseY - pos.y);
+            if (dist <= DOT_RADIUS + 12) { 
+                selectedPlayerId = id;
+            }
+        });
+
+        if (!selectedPlayerId) {
+            isDraggingMap = true;
+            startDragX = mouseX - cameraX;
+            startDragY = mouseY - cameraY;
+        }
+        draw();
+    });
+
+    // Variable pour suivre si le joueur a été déplacé pendant le drag
+    let hasDraggedPlayer = false;
+
+    canvas.addEventListener('mousemove', e => {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        if (selectedPlayerId && (e.buttons === 1)) {
+            hasDraggedPlayer = true;
+            const gamePos = screenToGame(mouseX, mouseY);
+            gamePos.x = Math.max(0, Math.min(MAP_SIZE, gamePos.x));
+            gamePos.y = Math.max(0, Math.min(MAP_SIZE, gamePos.y));
+            
+            allMembers[selectedPlayerId].x = gamePos.x;
+            allMembers[selectedPlayerId].y = gamePos.y;
+            draw();
+        } else if (isDraggingMap) {
+            cameraX = mouseX - startDragX;
+            cameraY = mouseY - startDragY;
+            constrainCamera();
+            draw();
+        }
+    });
+
+    window.addEventListener('mouseup', () => {
+        if (selectedPlayerId && hasDraggedPlayer) {
+            allianceRef.child(selectedPlayerId).update({
+                x: allMembers[selectedPlayerId].x,
+                y: allMembers[selectedPlayerId].y
+            });
+        }
+        // On ne remet plus selectedPlayerId à null pour maintenir la couleur bleue visible au clic simple
+        hasDraggedPlayer = false;
+        isDraggingMap = false;
+    });
+
+    canvas.addEventListener('wheel', e => {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        const gamePosBefore = screenToGame(mouseX, mouseY);
+
+        if (e.deltaY < 0) zoom *= 1.1;
+        else zoom /= 1.1;
+        
+        const minZoomX = canvas.width / MAP_SIZE;
+        const minZoomY = canvas.height / MAP_SIZE;
+        const minZoom = Math.max(minZoomX, minZoomY);
+        
+        zoom = Math.max(minZoom, Math.min(5, zoom));
+
+        cameraX = mouseX - gamePosBefore.x * zoom;
+        cameraY = mouseY - gamePosBefore.y * zoom;
+        
+        constrainCamera();
+        draw();
+    });
+
+    canvas.addEventListener('dblclick', e => {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        Object.keys(allMembers).forEach(id => {
+            const m = allMembers[id];
+            const pos = gameToScreen(m.x, m.y);
+            if (Math.hypot(mouseX - pos.x, mouseY - pos.y) <= DOT_RADIUS + 12) {
+                if (confirm(`Delete ${m.name} from database?`)) {
+                    allianceRef.child(id).remove();
+                }
+            }
+        });
+    });
+
+    // Masquer les résultats de recherche si on clique à l'extérieur
+    document.addEventListener('click', e => {
+        if (!e.target.closest('.search-container')) {
+            document.getElementById('searchResults').style.display = 'none';
+        }
+    });
+
+    setTimeout(resizeCanvas, 200);
+</script>
+</body>
+</html>
