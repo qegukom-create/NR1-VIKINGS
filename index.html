@@ -4,54 +4,345 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NR1 - Vikings Auto-Balancer (Proximity)</title>
+    <!-- Tailwind CSS for modern utility-first layout styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase compatibility SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     
     <style>
-        :root { --bg: #111827; --card: #1f2937; --accent: #10b981; --primary: #3b82f6; --danger: #ef4444; --text: #f3f4f6; }
-        body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
-        .container { max-width: 500px; margin: auto; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+        :root { 
+            --bg: #111827; 
+            --card: #1f2937; 
+            --accent: #10b981; 
+            --primary: #3b82f6; 
+            --danger: #ef4444; 
+            --text: #f3f4f6; 
+            --warning: #f59e0b;
+        }
+        body { 
+            font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+            background: var(--bg); 
+            color: var(--text); 
+            margin: 0; 
+            padding: 10px; 
+        }
+        .container { 
+            max-width: 500px; 
+            margin: auto; 
+        }
         
-        .header-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 5px 0; }
-        .header-nav h1 { font-size: 1.3rem; color: var(--primary); margin: 0; font-weight: 800; letter-spacing: 1px; }
-        .btn-config { background: rgba(59, 130, 246, 0.1); border: 1px solid var(--primary); color: var(--primary); padding: 8px 12px; border-radius: 8px; font-size: 0.7rem; text-decoration: none; font-weight: bold; white-space: nowrap; transition: 0.3s; }
+        .header-nav { 
+            display: flex; 
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 15px; 
+            padding: 5px 0; 
+        }
+        @media(min-width: 400px) {
+            .header-nav {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+            }
+        }
+        .header-nav h1 { 
+            font-size: 1.3rem; 
+            color: var(--primary); 
+            margin: 0; 
+            font-weight: 800; 
+            letter-spacing: 1px; 
+        }
+        .nav-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        .btn-config { 
+            background: rgba(59, 130, 246, 0.1); 
+            border: 1px solid var(--primary); 
+            color: var(--primary); 
+            padding: 8px 12px; 
+            border-radius: 8px; 
+            font-size: 0.7rem; 
+            text-decoration: none; 
+            font-weight: bold; 
+            white-space: nowrap; 
+            transition: 0.3s; 
+            cursor: pointer;
+        }
 
-        .panel { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        label { font-size: 0.75rem; font-weight: bold; color: #9ca3af; display: block; margin-bottom: 5px; text-transform: uppercase; }
-        input, select { background: #111827; border: 1px solid #374151; color: white; padding: 12px; width: 100%; border-radius: 8px; box-sizing: border-box; margin-bottom: 10px; font-size: 16px; outline: none; }
-        select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 10px center; background-size: 20px; }
+        .panel { 
+            background: var(--card); 
+            padding: 15px; 
+            border-radius: 12px; 
+            margin-bottom: 10px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3); 
+        }
+        label { 
+            font-size: 0.75rem; 
+            font-weight: bold; 
+            color: #9ca3af; 
+            display: block; 
+            margin-bottom: 5px; 
+            text-transform: uppercase; 
+        }
+        input, select { 
+            background: #111827; 
+            border: 1px solid #374151; 
+            color: white; 
+            padding: 12px; 
+            width: 100%; 
+            border-radius: 8px; 
+            box-sizing: border-box; 
+            margin-bottom: 10px; 
+            font-size: 16px; 
+            outline: none; 
+        }
+        select { 
+            cursor: pointer; 
+            appearance: none; 
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e"); 
+            background-repeat: no-repeat; 
+            background-position: right 10px center; 
+            background-size: 20px; 
+        }
         
-        .search-dynamic { background: #0f172a; border-color: #4b5563; }
-        .search-dynamic:focus { border-color: var(--primary); }
+        .search-dynamic { 
+            background: #0f172a; 
+            border-color: #4b5563; 
+        }
+        .search-dynamic:focus { 
+            border-color: var(--primary); 
+        }
 
-        .row { display: flex; gap: 10px; }
-        .row .flex-input { flex: 2; }
-        .row .flex-select { flex: 1; }
+        .row { 
+            display: flex; 
+            gap: 10px; 
+        }
+        .row .flex-input { 
+            flex: 2; 
+        }
+        .row .flex-select { 
+            flex: 1; 
+        }
 
-        .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; text-transform: uppercase; transition: 0.2s; }
-        .btn-host { background: var(--primary); color: white; margin-bottom: 5px; }
-        .btn-send { background: var(--accent); color: white; }
-        .btn-forced { background: #d97706; color: white; margin-top: 20px; font-size: 0.85rem; } /* Style pour le nouveau bouton */
+        .btn { 
+            width: 100%; 
+            padding: 14px; 
+            border: none; 
+            border-radius: 8px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            text-transform: uppercase; 
+            transition: 0.2s; 
+        }
+        .btn-host { 
+            background: var(--primary); 
+            color: white; 
+            margin-bottom: 5px; 
+        }
+        .btn-send { 
+            background: var(--accent); 
+            color: white; 
+        }
+        .btn-forced { 
+            background: #d97706; 
+            color: white; 
+            margin-top: 20px; 
+            font-size: 0.85rem; 
+        }
 
-        .host-card { background: var(--card); border-radius: 12px; padding: 15px; margin-top: 10px; border-left: 6px solid var(--primary); }
-        .host-header { display: flex; justify-content: space-between; align-items: center; }
-        .host-name { font-weight: 800; font-size: 1.1rem; }
-        .host-coords { font-size: 0.75rem; color: #9ca3af; margin-left: 8px; font-weight: normal; }
+        .host-card { 
+            background: var(--card); 
+            border-radius: 12px; 
+            padding: 15px; 
+            margin-top: 10px; 
+            border-left: 6px solid var(--primary); 
+        }
+        .host-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+        }
+        .host-name { 
+            font-weight: 800; 
+            font-size: 1.1rem; 
+        }
+        .host-coords { 
+            font-size: 0.75rem; 
+            color: #9ca3af; 
+            margin-left: 8px; 
+            font-weight: normal; 
+        }
         
-        .progress-bar { background: #374151; height: 12px; border-radius: 6px; margin: 10px 0; overflow: hidden; }
-        .progress-fill { height: 100%; transition: width 0.5s; background: var(--accent); }
-        .full { background: var(--danger) !important; }
+        .progress-bar { 
+            background: #374151; 
+            height: 12px; 
+            border-radius: 6px; 
+            margin: 10px 0; 
+            overflow: hidden; 
+        }
+        .progress-fill { 
+            height: 100%; 
+            transition: width 0.5s; 
+            background: var(--accent); 
+        }
+        .full { 
+            background: var(--danger) !important; 
+        }
 
-        .reinf-list { font-size: 0.85rem; list-style: none; padding: 0; margin: 5px 0 0 0; color: #d1d5db; }
-        .reinf-item { background: rgba(0,0,0,0.2); padding: 8px 12px; border-radius: 6px; margin-top: 5px; display: flex; justify-content: space-between; align-items: center; }
+        .reinf-list { 
+            font-size: 0.85rem; 
+            list-style: none; 
+            padding: 0; 
+            margin: 5px 0 0 0; 
+            color: #d1d5db; 
+        }
+        .reinf-item { 
+            background: rgba(0,0,0,0.2); 
+            padding: 8px 12px; 
+            border-radius: 6px; 
+            margin-top: 5px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+        }
         
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; box-sizing: border-box; }
-        .modal-content { background: var(--card); padding: 25px; border-radius: 16px; width: 100%; max-width: 400px; text-align: center; border: 1px solid #374151; }
-        .modal-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 10px; color: var(--primary); }
-        .modal-text { color: #f3f4f6; margin-bottom: 20px; font-size: 0.95rem; text-align: left; background: #111827; padding: 15px; border-radius: 8px; line-height: 1.5; }
+        .modal-overlay { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0,0,0,0.85); 
+            display: none; 
+            align-items: center; 
+            justify-content: center; 
+            z-index: 1000; 
+            padding: 20px; 
+            box-sizing: border-box; 
+        }
+        .modal-content { 
+            background: var(--card); 
+            padding: 25px; 
+            border-radius: 16px; 
+            width: 100%; 
+            max-width: 420px; 
+            text-align: center; 
+            border: 1px solid #374151; 
+            max-height: 90vh; 
+            overflow-y: auto; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        .modal-title { 
+            font-size: 1.2rem; 
+            font-weight: bold; 
+            margin-bottom: 10px; 
+            color: var(--primary); 
+        }
+        .modal-text { 
+            color: #f3f4f6; 
+            margin-bottom: 20px; 
+            font-size: 0.95rem; 
+            text-align: left; 
+            background: #111827; 
+            padding: 15px; 
+            border-radius: 8px; 
+            line-height: 1.5; 
+        }
+
+        /* Chat Summary Template Panel */
+        .chat-template-box {
+            background: #0f172a;
+            border: 1px dashed var(--primary);
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            text-align: left;
+        }
+        .chat-template-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .chat-template-label {
+            font-size: 0.7rem;
+            font-weight: bold;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .chat-code-block {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.85rem;
+            white-space: pre;
+            background: #020617;
+            padding: 10px;
+            border-radius: 6px;
+            color: #38bdf8;
+            overflow-x: auto;
+            border: 1px solid #1e293b;
+            line-height: 1.25;
+        }
+        .btn-copy-chat {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-copy-chat:hover {
+            background: #2563eb;
+        }
+        .btn-copy-chat.success {
+            background: var(--accent) !important;
+        }
         
-        .reset-all { background: none; border: none; color: #4b5563; width: 100%; margin-top: 15px; font-size: 0.75rem; text-decoration: underline; cursor: pointer; }
-        .order-item { border-bottom: 1px solid #374151; padding: 5px 0; display: block; }
+        .reset-all { 
+            background: none; 
+            border: none; 
+            color: #4b5563; 
+            width: 100%; 
+            margin-top: 15px; 
+            font-size: 0.75rem; 
+            text-decoration: underline; 
+            cursor: pointer; 
+        }
+        .order-item { 
+            border-bottom: 1px solid #374151; 
+            padding: 5px 0; 
+            display: block; 
+        }
+
+        /* Notification Toast Styling */
+        .toast-notify {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--accent);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .toast-notify.show {
+            transform: translateX(-50%) translateY(0);
+        }
     </style>
 </head>
 <body>
@@ -59,18 +350,24 @@
 <div class="container">
     <div class="header-nav">
         <h1>NR1 🛡 VIKINGS</h1>
-        <a href="https://qegukom-create.github.io/NR1-VIKINGS/position.html" class="btn-config">POSITION ⚙️</a>
+        <div class="nav-buttons">
+            <button class="btn-config" style="background: rgba(16, 185, 129, 0.1); border-color: var(--accent); color: var(--accent);" onclick="fullDeploySim()">FULL DEPLOY 🚀</button>
+            <button class="btn-config" style="background: rgba(245, 158, 11, 0.1); border-color: var(--warning); color: var(--warning);" onclick="generateGlobalPlan()">COPY PLAN 📋</button>
+            <a href="https://qegukom-create.github.io/NR1-VIKINGS/position.html" class="btn-config">COORDINATES ⚙️</a>
+        </div>
     </div>
 
+    <!-- Become Host panel -->
     <div class="panel">
         <label>BECOME HOST (400k Cap)</label>
-        <input type="text" id="h-name" class="search-dynamic" placeholder="✍️ Start typing your pseudo..." list="players-list">
+        <input type="text" id="h-name" class="search-dynamic" placeholder="✍️ Start typing your name..." list="players-list">
         <button class="btn btn-host" onclick="addHost()">I am Online</button>
     </div>
 
+    <!-- Dispatch Reinforcements panel -->
     <div class="panel">
         <label>REINFORCEMENTS</label>
-        <input type="text" id="r-name" class="search-dynamic" placeholder="✍️ Start typing your pseudo..." list="players-list">
+        <input type="text" id="r-name" class="search-dynamic" placeholder="✍️ Start typing your name..." list="players-list">
         
         <div class="row">
             <div class="flex-input">
@@ -80,7 +377,8 @@
             <div class="flex-select">
                 <label>Marches</label>
                 <select id="r-marches">
-                    <option value="4" selected>4</option>
+                    <option value="3" selected>3</option>
+                    <option value="4">4</option>
                     <option value="5">5</option>
                     <option value="6">6</option>
                 </select>
@@ -94,18 +392,23 @@
 
     <div id="display"></div>
     
-    <!-- Nouveau bouton ajouté ici -->
-    <button class="btn btn-forced" onclick="forcedAllOnline()">Forced All Online</button>
+    <button class="btn btn-forced" onclick="forcedAllOnline()">Force All Online</button>
     
     <button class="reset-all" onclick="showConfirmModal('Full Reset', 'This will wipe the entire board. Are you sure?', () => hostsRef.remove())">System Reset</button>
 </div>
 
+<!-- Custom Info & Confirmation Modal -->
 <div id="customModal" class="overlay modal-overlay">
     <div class="modal-content">
         <div id="modalTitle" class="modal-title">Info</div>
         <div id="modalText" class="modal-text"></div>
         <div id="modalButtons" class="modal-buttons"></div>
     </div>
+</div>
+
+<!-- Custom Toast Message Container -->
+<div id="toastNotification" class="toast-notify">
+    <span>📋</span> <span id="toastText">Text copied to clipboard!</span>
 </div>
 
 <script>
@@ -126,6 +429,36 @@
     const SLICE = 100000;
 
     let allMembers = {};
+    let lastPlanSnapshot = null; // Store database snapshot locally for toggling modal views
+
+    // Custom non-blocking message toast
+    function showToast(message) {
+        const toast = document.getElementById('toastNotification');
+        document.getElementById('toastText').innerText = message;
+        toast.classList.add('show');
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 3000);
+    }
+
+    // Custom copy to clipboard utility (safely bypassing iframe restrictions)
+    function copyStringToClipboard(str) {
+        const el = document.createElement('textarea');
+        el.value = str;
+        el.setAttribute('readonly', '');
+        el.style.position = 'absolute';
+        el.style.left = '-9999px';
+        document.body.appendChild(el);
+        el.select();
+        let success = false;
+        try {
+            success = document.execCommand('copy');
+        } catch (err) {
+            success = false;
+        }
+        document.body.removeChild(el);
+        return success;
+    }
 
     function showConfirmModal(title, text, action) {
         document.getElementById('modalTitle').innerText = title;
@@ -137,24 +470,160 @@
         document.getElementById('customModal').style.display = 'flex';
     }
 
-    function showOrderModal(orders, remaining) {
+    // Individual copy trigger handler (used in modal lists)
+    function handleInlineCopy(text, btn) {
+        const success = copyStringToClipboard(text);
+        if (success) {
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "Copied! ✅";
+            btn.classList.add('success');
+            showToast("Copied to clipboard!");
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.classList.remove('success');
+            }, 3000);
+        } else {
+            showToast("Failed to copy text.");
+        }
+    }
+
+    // Modal showing individual orders
+    function showOrderModal(orders, remaining, senderName) {
         document.getElementById('modalTitle').innerText = "🚀 DISPATCH ORDERS";
+        
         let html = "<strong>Instructions (Sorted by closest):</strong><br><br>";
         orders.forEach(o => {
             const distText = o.distance !== null ? ` (<span style="color:var(--accent)">Dist: ${o.distance.toFixed(1)}</span>)` : '';
             html += `<span class="order-item">➡️ Send <b>${(o.qty/1000)}k</b> to 🏰 <b>${o.hostName}</b>${distText}</span>`;
         });
-        if(remaining > 0) {
+        
+        if (remaining > 0) {
             html += `<br><small style="color:var(--danger)">⚠️ ${remaining.toLocaleString()} troops not sent (Max marches or no other hosts).</small>`;
         }
+
+        // Generate the chat template (strictly trimmed to 27 characters per line max)
+        let cleanName = senderName || "Player";
+        if (cleanName.length > 12) cleanName = cleanName.substring(0, 10) + "..";
+        
+        let chatStr = `⚔️ VIKINGS DEPLOY ⚔️\n`;
+        chatStr += `👤 ${cleanName}\n`;
+        chatStr += `---------------------------\n`;
+        orders.forEach(o => {
+            let trgName = o.hostName;
+            if (trgName.length > 11) trgName = trgName.substring(0, 9) + "..";
+            chatStr += `👉 Send ${(o.qty/1000)}k to ${trgName}\n`;
+        });
+        chatStr += `---------------------------`;
+
+        html += `
+            <div class="chat-template-box">
+                <div class="chat-template-header">
+                    <span class="chat-template-label">Alliance Chat Format</span>
+                    <button class="btn-copy-chat" onclick="handleInlineCopy(\`${chatStr.replace(/`/g, '\\`').replace(/\n/g, '\\n')}\`, this)">Copy Chat Text 📋</button>
+                </div>
+                <div class="chat-code-block">${chatStr}</div>
+            </div>
+        `;
+
         document.getElementById('modalText').innerHTML = html;
         document.getElementById('modalButtons').innerHTML = `<button class="btn" style="background:var(--primary); color:white" onclick="closeModal()">Got it!</button>`;
         document.getElementById('customModal').style.display = 'flex';
     }
 
-    function closeModal() { document.getElementById('customModal').style.display = 'none'; }
+    // Generates the actionable global deployment instructions
+    async function generateGlobalPlan() {
+        const snapshot = await hostsRef.once('value');
+        const data = snapshot.val();
+        if (!data) {
+            showToast("No hosts online currently!");
+            return;
+        }
+        lastPlanSnapshot = data; // Keep cached reference
+        renderGlobalPlanModal(); // Render player perspective directly
+    }
+
+    // Render the player-centric plan as a single continuous block
+    function renderGlobalPlanModal() {
+        const data = lastPlanSnapshot;
+        if (!data) return;
+
+        const hostIds = Object.keys(data);
+        if (hostIds.length === 0) {
+            showToast("No active hosts found.");
+            return;
+        }
+
+        let html = '';
+
+        html += `
+            <p style="font-size: 0.85rem; margin-bottom: 15px; text-align: left; color: #9ca3af;">
+                This formatted block strictly adheres to the 27-character limit per line. Copy the plan below and paste directly into alliance chat.
+            </p>
+        `;
+
+        // Map hosts back to senders
+        let senderMap = {};
+        hostIds.forEach(id => {
+            const h = data[id];
+            if (h.reinforcements) {
+                Object.values(h.reinforcements).forEach(r => {
+                    const sName = r.name;
+                    if (!senderMap[sName]) {
+                        senderMap[sName] = [];
+                    }
+                    senderMap[sName].push({
+                        hostName: h.name,
+                        qty: Number(r.qty) || 0
+                    });
+                });
+            }
+        });
+
+        const senderNames = Object.keys(senderMap).sort((a,b) => a.localeCompare(b));
+        let fullPlanText = `⚔️ VIKINGS PLAN ⚔️\n---------------------------\n`;
+
+        if (senderNames.length === 0) {
+            html += `<div style="text-align: center; color: var(--danger); padding: 20px 0;">No active deployments found. Run "Full Deploy" first!</div>`;
+            fullPlanText += `No deployments active.\n---------------------------`;
+        } else {
+            senderNames.forEach((sName) => {
+                let sLabel = sName;
+                if (sLabel.length > 11) sLabel = sLabel.substring(0, 9) + "..";
+                fullPlanText += `👤 ${sLabel}\n`;
+
+                senderMap[sName].forEach(dest => {
+                    let hLabel = dest.hostName;
+                    if (hLabel.length > 10) hLabel = hLabel.substring(0, 8) + "..";
+                    fullPlanText += `👉 Send ${Math.round(dest.qty/1000)}k to ${hLabel}\n`;
+                });
+                fullPlanText += `---------------------------\n`;
+            });
+        }
+
+        // Render single continuous chunk block
+        const escapedText = fullPlanText.replace(/`/g, '\\`').replace(/\n/g, '\\n');
+        html += `
+            <div class="chat-template-box" style="margin-bottom: 15px;">
+                <div class="chat-template-header">
+                    <span class="chat-template-label" style="color: var(--warning)">Full Plan</span>
+                    <button class="btn-copy-chat" style="background: var(--warning);" onclick="handleInlineCopy(\`${escapedText}\`, this)">Copy Plan 📋</button>
+                </div>
+                <div class="chat-code-block" style="max-height: 250px; overflow-y: auto;">${fullPlanText}</div>
+            </div>
+        `;
+
+        document.getElementById('modalTitle').innerText = "📋 ALLIANCE DISPATCH PLAN";
+        document.getElementById('modalText').innerHTML = html;
+        document.getElementById('modalButtons').innerHTML = `<button class="btn" style="background:var(--primary); color:white" onclick="closeModal()">Close</button>`;
+        document.getElementById('customModal').style.display = 'flex';
+    }
+
+    function closeModal() { 
+        document.getElementById('customModal').style.display = 'none'; 
+    }
 
     function findMemberByName(name) {
+        if (!name) return null;
         return Object.values(allMembers).find(m => m.name.toLowerCase() === name.toLowerCase());
     }
 
@@ -193,7 +662,7 @@
             if (h.reinforcements) {
                 Object.keys(h.reinforcements).forEach(rid => {
                     const r = h.reinforcements[rid];
-                    total += r.qty;
+                    total += (Number(r.qty) || 0);
                     list += `<div class="reinf-item"><span>${r.name}</span> <span>+${(r.qty/1000)}k <button style="color:var(--danger); border:none; background:none; cursor:pointer;" onclick="hostsRef.child('${id}').child('reinforcements').child('${rid}').remove()">×</button></span></div>`;
                 });
             }
@@ -217,23 +686,21 @@
             hostsRef.push({ name: value, capacity: MAX_CAP }); 
             input.value = "";
         } else {
-            alert("Please type or select a player to become Host.");
+            showToast("Please type or select a player to become Host.");
         }
     }
 
-    // Nouvelle fonction pour forcer tout le monde en ligne avec mot de passe
     async function forcedAllOnline() {
         const password = prompt("Enter control password:");
         if (password !== "PEWN") {
-            return alert("Incorrect password. Access denied.");
+            return showToast("Incorrect password. Access denied.");
         }
 
         const memberIds = Object.keys(allMembers);
         if (memberIds.length === 0) {
-            return alert("No players found in the database.");
+            return showToast("No players found in the database.");
         }
 
-        // Récupérer l'état actuel des hosts pour éviter les doublons absolus
         const currentHostsSnap = await hostsRef.once('value');
         const currentHosts = currentHostsSnap.val() || {};
         const currentHostNames = Object.values(currentHosts).map(h => h.name.toLowerCase());
@@ -241,14 +708,103 @@
         let addedCount = 0;
         memberIds.forEach(id => {
             const playerName = allMembers[id].name;
-            // On vérifie si le joueur n'est pas déjà enregistré comme Host actif
             if (!currentHostNames.includes(playerName.toLowerCase())) {
                 hostsRef.push({ name: playerName, capacity: MAX_CAP });
                 addedCount++;
             }
         });
 
-        alert(`Success! ${addedCount} players have been forced online.`);
+        showToast(`Success! ${addedCount} players forced online.`);
+    }
+
+    async function fullDeploySim() {
+        const password = prompt("Enter control password:");
+        if (password !== "PEWN") {
+            return showToast("Incorrect password. Access denied.");
+        }
+
+        const snapshot = await hostsRef.once('value');
+        const hosts = snapshot.val();
+        if (!hosts) return showToast("No hosts online!");
+
+        let localHosts = {};
+        Object.keys(hosts).forEach(id => {
+            localHosts[id] = {
+                id: id,
+                name: hosts[id].name,
+                reinforcements: hosts[id].reinforcements ? {...hosts[id].reinforcements} : {},
+                total: 0
+            };
+            Object.values(localHosts[id].reinforcements).forEach(r => {
+                localHosts[id].total += (Number(r.qty) || 0);
+            });
+        });
+
+        const members = Object.values(allMembers);
+        if (members.length === 0) {
+            return showToast("No players found in the alliance database.");
+        }
+
+        let updates = {};
+        let totalDispatched = 0;
+
+        for (const member of members) {
+            if (!member || !member.name) continue;
+            const rName = member.name;
+
+            let qty = 300000; 
+            const maxMarches = 3; 
+            let marchCount = 0;
+
+            while (qty > 0 && marchCount < maxMarches) {
+                let hostArray = Object.keys(localHosts)
+                    .map(id => {
+                        const hostProfile = findMemberByName(localHosts[id].name);
+                        let distance = null;
+                        if (member && hostProfile) {
+                            distance = calculateDistance(member.x, member.y, hostProfile.x, hostProfile.y);
+                        }
+                        return { id: id, name: localHosts[id].name, total: localHosts[id].total, distance: distance };
+                    })
+                    .filter(h => h.name.toLowerCase() !== rName.toLowerCase()); 
+
+                if (hostArray.length === 0) break; 
+
+                hostArray.sort((a, b) => {
+                    if (a.total !== b.total) {
+                        return a.total - b.total;
+                    }
+                    if (a.distance !== null && b.distance !== null) {
+                        return a.distance - b.distance; 
+                    }
+                    return 0;
+                });
+
+                let target = hostArray[0];
+                if (target.total >= MAX_CAP) {
+                    break;
+                }
+
+                let spaceLeft = MAX_CAP - target.total;
+                let toSend = Math.min(qty, SLICE, spaceLeft);
+                if (toSend <= 0) break;
+
+                const newKey = hostsRef.child(target.id).child('reinforcements').push().key;
+                updates[`${target.id}/reinforcements/${newKey}`] = { name: rName, qty: toSend };
+
+                localHosts[target.id].total += toSend;
+                qty -= toSend;
+                marchCount++;
+                totalDispatched += toSend;
+            }
+        }
+
+        if (Object.keys(updates).length > 0) {
+            await hostsRef.update(updates);
+            showToast(`Simulation completed! ${totalDispatched.toLocaleString()} troops deployed.`);
+        } else {
+            showToast("All active hosts are already completely full!");
+        }
     }
 
     async function handleAutoBalance() {
@@ -256,18 +812,20 @@
         let qty = parseInt(document.getElementById('r-qty').value);
         let maxMarches = parseInt(document.getElementById('r-marches').value);
         
-        if (!rName || isNaN(qty) || qty <= 0) return alert("Type your Name and enter Troops!");
+        if (!rName || isNaN(qty) || qty <= 0) return showToast("Type your Name and enter Troops!");
 
         const snapshot = await hostsRef.once('value');
         const hosts = snapshot.val();
-        if (!hosts) return alert("No hosts online!");
+        if (!hosts) return showToast("No hosts online!");
 
         const senderProfile = findMemberByName(rName);
 
         let hostArray = Object.keys(hosts)
             .map(id => {
                 let total = 0;
-                if (hosts[id].reinforcements) Object.values(hosts[id].reinforcements).forEach(r => total += r.qty);
+                if (hosts[id].reinforcements) {
+                    Object.values(hosts[id].reinforcements).forEach(r => total += (Number(r.qty) || 0));
+                }
                 
                 const hostProfile = findMemberByName(hosts[id].name);
                 let distance = null;
@@ -279,7 +837,7 @@
             })
             .filter(h => h.name.toLowerCase() !== rName.toLowerCase());
 
-        if (hostArray.length === 0) return alert("No other hosts available to receive your troops!");
+        if (hostArray.length === 0) return showToast("No other hosts available to receive your troops!");
 
         let myOrders = [];
         let marchCount = 0;
@@ -308,11 +866,11 @@
         }
 
         if (myOrders.length > 0) {
-            showOrderModal(myOrders, qty);
+            showOrderModal(myOrders, qty, rName);
             document.getElementById('r-qty').value = "";
             document.getElementById('r-name').value = "";
         } else {
-            alert("Remaining hosts are full!");
+            showToast("Remaining hosts are full!");
         }
     }
 </script>
