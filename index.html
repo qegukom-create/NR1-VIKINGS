@@ -441,10 +441,12 @@
         }, 3000);
     }
 
-    // Custom copy to clipboard utility (safely bypassing iframe restrictions)
+    // Custom copy to clipboard utility (safely normalizing linebreaks to CRLF for perfect mobile/PC compatibility)
     function copyStringToClipboard(str) {
+        // Normalize all possible line breaks (LF, CR) to CRLF to avoid swallowing spaces/newlines in games
+        const normalizedStr = str.replace(/\r?\n/g, '\r\n');
         const el = document.createElement('textarea');
-        el.value = str;
+        el.value = normalizedStr;
         el.setAttribute('readonly', '');
         el.style.position = 'absolute';
         el.style.left = '-9999px';
@@ -470,8 +472,14 @@
         document.getElementById('customModal').style.display = 'flex';
     }
 
-    // Individual copy trigger handler (used in modal lists)
-    function handleInlineCopy(text, btn) {
+    // Safe, robust copy trigger handler that reads direct textContent to avoid all escaping bugs
+    function handleInlineCopy(btn) {
+        const container = btn.closest('.chat-template-box');
+        if (!container) return;
+        const codeBlock = container.querySelector('.chat-code-block');
+        if (!codeBlock) return;
+        const text = codeBlock.textContent;
+
         const success = copyStringToClipboard(text);
         if (success) {
             const originalText = btn.innerHTML;
@@ -487,7 +495,7 @@
         }
     }
 
-    // Modal showing individual orders
+    // Modal showing individual orders with zero-escaping clean buttons
     function showOrderModal(orders, remaining, senderName) {
         document.getElementById('modalTitle').innerText = "🚀 DISPATCH ORDERS";
         
@@ -519,7 +527,7 @@
             <div class="chat-template-box">
                 <div class="chat-template-header">
                     <span class="chat-template-label">Alliance Chat Format</span>
-                    <button class="btn-copy-chat" onclick="handleInlineCopy(\`${chatStr.replace(/`/g, '\\`').replace(/\n/g, '\\n')}\`, this)">Copy Chat Text 📋</button>
+                    <button class="btn-copy-chat" onclick="handleInlineCopy(this)">Copy Chat Text 📋</button>
                 </div>
                 <div class="chat-code-block">${chatStr}</div>
             </div>
@@ -542,7 +550,7 @@
         renderGlobalPlanModal(); // Render player perspective directly
     }
 
-    // Render the player-centric plan, grouped strictly by 6 players
+    // Render the player-centric plan, grouped strictly by 6 players to avoid in-game text limits
     function renderGlobalPlanModal() {
         const data = lastPlanSnapshot;
         if (!data) return;
@@ -605,14 +613,12 @@
                     partText += `-----------\n`;
                 });
 
-                const escapedText = partText.replace(/`/g, '\\`').replace(/\n/g, '\\n');
-                
-                // Add a text box and individual copy button for this specific block
+                // Add a text box and individual copy button for this specific block (clean handleInlineCopy with no parameters!)
                 html += `
                     <div class="chat-template-box" style="margin-bottom: 15px;">
                         <div class="chat-template-header">
                             <span class="chat-template-label" style="color: var(--warning)">Plan Part ${partNum} (${i + 1}-${Math.min(i + groupSize, senderNames.length)})</span>
-                            <button class="btn-copy-chat" style="background: var(--warning);" onclick="handleInlineCopy(\`${escapedText}\`, this)">Copy Part ${partNum} 📋</button>
+                            <button class="btn-copy-chat" style="background: var(--warning);" onclick="handleInlineCopy(this)">Copy Part ${partNum} 📋</button>
                         </div>
                         <div class="chat-code-block" style="max-height: 200px; overflow-y: auto;">${partText}</div>
                     </div>
@@ -884,5 +890,3 @@
 </script>
 </body>
 </html>
-```
-`e`
