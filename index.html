@@ -542,7 +542,7 @@
         renderGlobalPlanModal(); // Render player perspective directly
     }
 
-    // Render the player-centric plan as a single continuous block
+    // Render the player-centric plan, grouped strictly by 6 players
     function renderGlobalPlanModal() {
         const data = lastPlanSnapshot;
         if (!data) return;
@@ -557,7 +557,7 @@
 
         html += `
             <p style="font-size: 0.85rem; margin-bottom: 15px; text-align: left; color: #9ca3af;">
-                Highly optimized format (under 18 chars per line) to strictly prevent any automated line wrapping in games chat.
+                Highly optimized format (under 18 chars per line). Grouped by <b>6 players per message block</b> to respect chat length limits.
             </p>
         `;
 
@@ -580,37 +580,45 @@
         });
 
         const senderNames = Object.keys(senderMap).sort((a,b) => a.localeCompare(b));
-        let fullPlanText = `⚔️ PLAN ⚔️\n-----------\n`;
 
         if (senderNames.length === 0) {
             html += `<div style="text-align: center; color: var(--danger); padding: 20px 0;">No active deployments found. Run "Full Deploy" first!</div>`;
-            fullPlanText += `No deployments active.\n-----------`;
         } else {
-            senderNames.forEach((sName) => {
-                let sLabel = sName;
-                if (sLabel.length > 9) sLabel = sLabel.substring(0, 8) + "..";
-                fullPlanText += `👤 ${sLabel}\n`;
+            const groupSize = 6;
+            // Slice the list of active players into groups of 6
+            for (let i = 0; i < senderNames.length; i += groupSize) {
+                const group = senderNames.slice(i, i + groupSize);
+                const partNum = Math.floor(i / groupSize) + 1;
+                
+                let partText = `⚔️ PLAN P${partNum} ⚔️\n-----------\n`;
+                
+                group.forEach(sName => {
+                    let sLabel = sName;
+                    if (sLabel.length > 9) sLabel = sLabel.substring(0, 8) + "..";
+                    partText += `👤 ${sLabel}\n`;
 
-                senderMap[sName].forEach(dest => {
-                    let hLabel = dest.hostName;
-                    if (hLabel.length > 9) hLabel = hLabel.substring(0, 8) + "..";
-                    fullPlanText += `> ${Math.round(dest.qty/1000)}k to ${hLabel}\n`;
+                    senderMap[sName].forEach(dest => {
+                        let hLabel = dest.hostName;
+                        if (hLabel.length > 9) hLabel = hLabel.substring(0, 8) + "..";
+                        partText += `> ${Math.round(dest.qty/1000)}k to ${hLabel}\n`;
+                    });
+                    partText += `-----------\n`;
                 });
-                fullPlanText += `-----------\n`;
-            });
-        }
 
-        // Render single continuous chunk block
-        const escapedText = fullPlanText.replace(/`/g, '\\`').replace(/\n/g, '\\n');
-        html += `
-            <div class="chat-template-box" style="margin-bottom: 15px;">
-                <div class="chat-template-header">
-                    <span class="chat-template-label" style="color: var(--warning)">Full Plan</span>
-                    <button class="btn-copy-chat" style="background: var(--warning);" onclick="handleInlineCopy(\`${escapedText}\`, this)">Copy Plan 📋</button>
-                </div>
-                <div class="chat-code-block" style="max-height: 250px; overflow-y: auto;">${fullPlanText}</div>
-            </div>
-        `;
+                const escapedText = partText.replace(/`/g, '\\`').replace(/\n/g, '\\n');
+                
+                // Add a text box and individual copy button for this specific block
+                html += `
+                    <div class="chat-template-box" style="margin-bottom: 15px;">
+                        <div class="chat-template-header">
+                            <span class="chat-template-label" style="color: var(--warning)">Plan Part ${partNum} (${i + 1}-${Math.min(i + groupSize, senderNames.length)})</span>
+                            <button class="btn-copy-chat" style="background: var(--warning);" onclick="handleInlineCopy(\`${escapedText}\`, this)">Copy Part ${partNum} 📋</button>
+                        </div>
+                        <div class="chat-code-block" style="max-height: 200px; overflow-y: auto;">${partText}</div>
+                    </div>
+                `;
+            }
+        }
 
         document.getElementById('modalTitle').innerText = "📋 ALLIANCE DISPATCH PLAN";
         document.getElementById('modalText').innerHTML = html;
@@ -876,3 +884,5 @@
 </script>
 </body>
 </html>
+```
+`e`
