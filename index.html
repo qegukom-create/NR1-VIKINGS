@@ -550,87 +550,229 @@
         renderGlobalPlanModal(); // Render player perspective directly
     }
 
-    // Render the player-centric plan, grouped strictly by 6 players to avoid in-game text limits
-    function renderGlobalPlanModal() {
-        const data = lastPlanSnapshot;
-        if (!data) return;
+// Ultra compact dynamic line builder
+function buildCompactLine(senderName, destinations, maxLen = 25) {
 
-        const hostIds = Object.keys(data);
-        if (hostIds.length === 0) {
-            showToast("No active hosts found.");
-            return;
+    // Nettoyage nom joueur
+    let sender = senderName
+        .replace(/\s+/g, '')
+        .replace(/[^\w]/g, '');
+
+    // Nettoyage des destinations
+    let names = destinations.map(d =>
+        d.hostName
+            .replace(/\s+/g, '')
+            .replace(/[^\w]/g, '')
+    );
+
+    // Taille mini des noms
+    const MIN_NAME = 3;
+
+    // Générateur de ligne
+    const render = () => {
+        return `👤${sender} ${names.join(',')}`;
+    };
+
+    // Si déjà OK
+    if (render().length <= maxLen) {
+        return render();
+    }
+
+    // Réduction équilibrée
+    while (render().length > maxLen) {
+
+        // Construire liste réductible
+        let reducible = [];
+
+        // Sender réductible
+        if (sender.length > MIN_NAME) {
+            reducible.push({
+                type: 'sender',
+                length: sender.length
+            });
         }
 
-        let html = '';
-
-        html += `
-            <p style="font-size: 0.85rem; margin-bottom: 15px; text-align: left; color: #9ca3af;">
-                Highly optimized format (under 18 chars per line). Grouped by <b>6 players per message block</b> to respect chat length limits.
-            </p>
-        `;
-
-        // Map hosts back to senders
-        let senderMap = {};
-        hostIds.forEach(id => {
-            const h = data[id];
-            if (h.reinforcements) {
-                Object.values(h.reinforcements).forEach(r => {
-                    const sName = r.name;
-                    if (!senderMap[sName]) {
-                        senderMap[sName] = [];
-                    }
-                    senderMap[sName].push({
-                        hostName: h.name,
-                        qty: Number(r.qty) || 0
-                    });
+        // Destinations réductibles
+        names.forEach((n, i) => {
+            if (n.length > MIN_NAME) {
+                reducible.push({
+                    type: 'dest',
+                    index: i,
+                    length: n.length
                 });
             }
         });
 
-        const senderNames = Object.keys(senderMap).sort((a,b) => a.localeCompare(b));
-
-        if (senderNames.length === 0) {
-            html += `<div style="text-align: center; color: var(--danger); padding: 20px 0;">No active deployments found. Run "Full Deploy" first!</div>`;
-        } else {
-            const groupSize = 6;
-            // Slice the list of active players into groups of 6
-            for (let i = 0; i < senderNames.length; i += groupSize) {
-                const group = senderNames.slice(i, i + groupSize);
-                const partNum = Math.floor(i / groupSize) + 1;
-                
-                let partText = `⚔️ PLAN P${partNum} ⚔️\n-----------\n`;
-                
-                group.forEach(sName => {
-                    let sLabel = sName;
-                    if (sLabel.length > 9) sLabel = sLabel.substring(0, 8) + "..";
-                    partText += `👤 ${sLabel}\n`;
-
-                    senderMap[sName].forEach(dest => {
-                        let hLabel = dest.hostName;
-                        if (hLabel.length > 9) hLabel = hLabel.substring(0, 8) + "..";
-                        partText += `> ${Math.round(dest.qty/1000)}k to ${hLabel}\n`;
-                    });
-                    partText += `-----------\n`;
-                });
-
-                // Add a text box and individual copy button for this specific block (clean handleInlineCopy with no parameters!)
-                html += `
-                    <div class="chat-template-box" style="margin-bottom: 15px;">
-                        <div class="chat-template-header">
-                            <span class="chat-template-label" style="color: var(--warning)">Plan Part ${partNum} (${i + 1}-${Math.min(i + groupSize, senderNames.length)})</span>
-                            <button class="btn-copy-chat" style="background: var(--warning);" onclick="handleInlineCopy(this)">Copy Part ${partNum} 📋</button>
-                        </div>
-                        <div class="chat-code-block" style="max-height: 200px; overflow-y: auto;">${partText}</div>
-                    </div>
-                `;
-            }
+        // Plus rien à réduire
+        if (reducible.length === 0) {
+            break;
         }
 
-        document.getElementById('modalTitle').innerText = "📋 ALLIANCE DISPATCH PLAN";
-        document.getElementById('modalText').innerHTML = html;
-        document.getElementById('modalButtons').innerHTML = `<button class="btn" style="background:var(--primary); color:white" onclick="closeModal()">Close</button>`;
-        document.getElementById('customModal').style.display = 'flex';
+        // Trier du plus long au plus court
+        reducible.sort((a, b) => b.length - a.length);
+
+        // Réduire tous les plus longs
+        reducible.forEach(item => {
+
+            if (render().length <= maxLen) return;
+
+            if (item.type === 'sender') {
+                sender = sender.slice(0, -1);
+            } else {
+                names[item.index] =
+                    names[item.index].slice(0, -1);
+            }
+        });
     }
+
+    return render();
+}
+
+
+// Render optimized compact global plan
+function renderGlobalPlanModal() {
+
+    const data = lastPlanSnapshot;
+    if (!data) return;
+
+    const hostIds = Object.keys(data);
+
+    if (hostIds.length === 0) {
+        showToast("No active hosts found.");
+        return;
+    }
+
+    let html = '';
+
+    // Construction sender map
+    let senderMap = {};
+
+    hostIds.forEach(id => {
+
+        const h = data[id];
+
+        if (h.reinforcements) {
+
+            Object.values(h.reinforcements).forEach(r => {
+
+                const sName = r.name;
+
+                if (!senderMap[sName]) {
+                    senderMap[sName] = [];
+                }
+
+                senderMap[sName].push({
+                    hostName: h.name,
+                    qty: Number(r.qty) || 0
+                });
+            });
+        }
+    });
+
+    const senderNames = Object.keys(senderMap)
+        .sort((a, b) => a.localeCompare(b));
+
+    if (senderNames.length === 0) {
+
+        html += `
+            <div style="
+                text-align:center;
+                color:var(--danger);
+                padding:20px 0;
+            ">
+                No active deployments found.
+            </div>
+        `;
+
+    } else {
+
+        const MAX_LINES = 10;
+
+        let chunks = [];
+        let currentChunk = [];
+        let currentLines = 0;
+
+        senderNames.forEach(sender => {
+
+            // Construction ligne compacte
+            const compactLine = buildCompactLine(
+                sender,
+                senderMap[sender],
+                25
+            );
+
+            // Nouveau chunk si dépassement
+            if (currentLines >= MAX_LINES) {
+
+                chunks.push(currentChunk);
+
+                currentChunk = [];
+                currentLines = 0;
+            }
+
+            currentChunk.push(compactLine);
+            currentLines++;
+        });
+
+        // Push final
+        if (currentChunk.length > 0) {
+            chunks.push(currentChunk);
+        }
+
+        // Render des blocs
+        chunks.forEach((chunk, index) => {
+
+            const partNum = index + 1;
+
+            const partText = chunk.join('\n');
+
+            html += `
+                <div class="chat-template-box" style="margin-bottom:15px;">
+
+                    <div class="chat-template-header">
+
+                        <span class="chat-template-label"
+                              style="color:var(--warning)">
+                              Part ${partNum}
+                        </span>
+
+                        <button
+                            class="btn-copy-chat"
+                            style="background:var(--warning);"
+                            onclick="handleInlineCopy(this)"
+                        >
+                            Copy 📋
+                        </button>
+
+                    </div>
+
+                    <div class="chat-code-block"
+                         style="max-height:200px;overflow-y:auto;">
+${partText}
+                    </div>
+
+                </div>
+            `;
+        });
+    }
+
+    document.getElementById('modalTitle').innerText =
+        "📋 COMPACT DEPLOY PLAN";
+
+    document.getElementById('modalText').innerHTML = html;
+
+    document.getElementById('modalButtons').innerHTML = `
+        <button
+            class="btn"
+            style="background:var(--primary);color:white"
+            onclick="closeModal()"
+        >
+            Close
+        </button>
+    `;
+
+    document.getElementById('customModal').style.display = 'flex';
+}
 
     function closeModal() { 
         document.getElementById('customModal').style.display = 'none'; 
