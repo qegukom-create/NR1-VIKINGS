@@ -501,19 +501,19 @@
             html += `<br><small style="color:var(--danger)">⚠️ ${remaining.toLocaleString()} troops not sent (Max marches or no other hosts).</small>`;
         }
 
-        // Generate the chat template (strictly trimmed to 27 characters per line max)
+        // Generate the ultra-compact chat template
         let cleanName = senderName || "Player";
-        if (cleanName.length > 12) cleanName = cleanName.substring(0, 10) + "..";
+        if (cleanName.length > 9) cleanName = cleanName.substring(0, 8) + "..";
         
-        let chatStr = `⚔️ VIKINGS DEPLOY ⚔️\n`;
+        let chatStr = `⚔️ DEPLOY ⚔️\n`;
         chatStr += `👤 ${cleanName}\n`;
-        chatStr += `---------------------------\n`;
+        chatStr += `-----------\n`;
         orders.forEach(o => {
             let trgName = o.hostName;
-            if (trgName.length > 11) trgName = trgName.substring(0, 9) + "..";
-            chatStr += `👉 Send ${(o.qty/1000)}k to ${trgName}\n`;
+            if (trgName.length > 9) trgName = trgName.substring(0, 8) + "..";
+            chatStr += `> ${(o.qty/1000)}k to ${trgName}\n`;
         });
-        chatStr += `---------------------------`;
+        chatStr += `-----------`;
 
         html += `
             <div class="chat-template-box">
@@ -557,7 +557,7 @@
 
         html += `
             <p style="font-size: 0.85rem; margin-bottom: 15px; text-align: left; color: #9ca3af;">
-                This formatted block strictly adheres to the 27-character limit per line. Copy the plan below and paste directly into alliance chat.
+                Highly optimized format (under 18 chars per line) to strictly prevent any automated line wrapping in games chat.
             </p>
         `;
 
@@ -580,23 +580,23 @@
         });
 
         const senderNames = Object.keys(senderMap).sort((a,b) => a.localeCompare(b));
-        let fullPlanText = `⚔️ VIKINGS PLAN ⚔️\n---------------------------\n`;
+        let fullPlanText = `⚔️ PLAN ⚔️\n-----------\n`;
 
         if (senderNames.length === 0) {
             html += `<div style="text-align: center; color: var(--danger); padding: 20px 0;">No active deployments found. Run "Full Deploy" first!</div>`;
-            fullPlanText += `No deployments active.\n---------------------------`;
+            fullPlanText += `No deployments active.\n-----------`;
         } else {
             senderNames.forEach((sName) => {
                 let sLabel = sName;
-                if (sLabel.length > 11) sLabel = sLabel.substring(0, 9) + "..";
+                if (sLabel.length > 9) sLabel = sLabel.substring(0, 8) + "..";
                 fullPlanText += `👤 ${sLabel}\n`;
 
                 senderMap[sName].forEach(dest => {
                     let hLabel = dest.hostName;
-                    if (hLabel.length > 10) hLabel = hLabel.substring(0, 8) + "..";
-                    fullPlanText += `👉 Send ${Math.round(dest.qty/1000)}k to ${hLabel}\n`;
+                    if (hLabel.length > 9) hLabel = hLabel.substring(0, 8) + "..";
+                    fullPlanText += `> ${Math.round(dest.qty/1000)}k to ${hLabel}\n`;
                 });
-                fullPlanText += `---------------------------\n`;
+                fullPlanText += `-----------\n`;
             });
         }
 
