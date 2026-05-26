@@ -2,283 +2,275 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Fusion de screenshots</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NR1 - Vikings Map Config</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+    
     <style>
-:root {
-    --bg: #0b1220;
-    --card: #172033;
-    --panel: #0f1728;
-    --primary: #2c7be5;
-    --primary-dark: #1f64bf;
-    --text: #f5f7fb;
-    --muted: #9ca9bf;
-    --border: #2c3a52;
-}
+        :root { --bg: #111827; --card: #1f2937; --accent: #10b981; --primary: #3b82f6; --danger: #ef4444; --text: #f3f4f6; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 12px; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+        .hidden { display: none !important; }
+        
+        .header-nav { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px solid #374151; flex-shrink: 0; margin-bottom: 10px; }
+        .header-nav h1 { font-size: 1.2rem; color: var(--primary); margin: 0; font-weight: 800; }
+        .btn-back { background: rgba(16, 185, 129, 0.1); border: 1px solid var(--accent); color: var(--accent); padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; text-decoration: none; font-weight: bold; cursor: pointer; }
 
-body {
-    font-family: "Segoe UI", Tahoma, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    margin: 0;
-    padding: 20px;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    box-sizing: border-box;
-}
+        /* Style de la zone de recherche dynamique */
+        .search-container { position: relative; margin-bottom: 10px; flex-shrink: 0; }
+        .search-input { width: 100%; background: var(--card); border: 1px solid #374151; color: white; padding: 10px; border-radius: 6px; outline: none; font-size: 0.9rem; box-sizing: border-box; }
+        .search-input:focus { border-color: var(--primary); }
+        .search-results { position: absolute; top: 100%; left: 0; right: 0; background: #1f2937; border: 1px solid #374151; border-top: none; border-radius: 0 0 6px 6px; max-height: 150px; overflow-y: auto; z-index: 10; display: none; }
+        .search-item { padding: 8px 12px; cursor: pointer; font-size: 0.85rem; border-bottom: 1px solid #111827; }
+        .search-item:hover { background: #374151; color: var(--primary); }
 
-.tool-card {
-    background: var(--card);
-    padding: 20px;
-    border-radius: 12px;
-    border: 1px solid var(--border);
-    flex-shrink: 0;
-}
+        .meta-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; flex-shrink: 0; }
+        .counter { font-size: 0.8rem; color: #9ca3af; }
 
-.stitch-container {
-    display: block;
-    padding: 10px;
-    background: var(--panel);
-    min-height: 560px;
-    overflow: auto;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-}
+        .stitcher-view { flex: 1; min-height: 0; display: flex; }
+        .stitcher-card { width: 100%; background: #0f1728; border: 1px solid #374151; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; min-height: 0; }
+        .stitcher-title { margin: 0 0 8px; color: #dbeafe; font-size: 1.2rem; }
+        .stitcher-hint { margin: 0 0 12px; color: #9ca3af; font-size: 0.92rem; }
+        .stitcher-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-bottom: 12px; }
+        .stitch-box { background: rgba(17, 24, 39, 0.75); border: 1px solid #374151; border-radius: 10px; padding: 10px; }
+        .stitch-box h3 { margin: 0 0 10px; font-size: 0.95rem; color: #c7d2fe; }
+        .stitch-row { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: center; margin-bottom: 8px; }
+        .stitch-row label { font-size: 0.88rem; color: #9ca3af; }
+        .stitch-row input { width: 100%; box-sizing: border-box; background: #111827; border: 1px solid #374151; color: #f9fafb; border-radius: 6px; padding: 7px 8px; font-size: 0.9rem; }
+        .stitch-row input[type="file"] { padding: 4px; }
+        .nudge-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+        .nudge-btn { border: 1px solid #374151; background: #1f2937; color: #f3f4f6; border-radius: 6px; font-size: 0.85rem; padding: 7px 10px; cursor: pointer; }
+        .nudge-btn:hover { background: #374151; }
+        .stitch-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+        .btn-small { border: none; border-radius: 6px; font-size: 0.86rem; font-weight: 700; padding: 9px 12px; cursor: pointer; color: white; background: var(--primary); }
+        .btn-small:hover { filter: brightness(1.1); }
+        .btn-muted { background: #4b5563; }
+        .stitch-status { margin: 0; font-size: 0.85rem; color: #93c5fd; }
 
-.crop-window {
-    position: relative;
-    border: 2px dashed #4a5f84;
-    border-radius: 8px;
-    overflow: auto;
-    min-width: 100%;
-    width: 100%;
-    height: 520px;
-    background: #060b16;
-}
+        .preview-wrap { background: #0b0f19; border: 1px dashed #374151; border-radius: 10px; overflow: auto; flex: 1; min-height: 420px; }
+        .preview-stage { position: relative; min-height: 100%; min-width: 100%; }
+        .preview-stage img { position: absolute; top: 0; left: 0; transform-origin: top left; user-select: none; }
 
-.crop-window img {
-    position: absolute;
-    top: 0;
-    left: 0;
-    cursor: grab;
-    user-select: none;
-}
+        .planner-view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
-.controls-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-    gap: 12px;
-    margin: 12px 0 14px;
-}
+        .map-container { flex-grow: 1; position: relative; background: #0b0f19; border: 2px solid #374151; border-radius: 8px; overflow: hidden; margin-bottom: 10px; }
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: grab; }
+        canvas:active { cursor: grabbing; }
 
-.control-box {
-    background: rgba(10, 16, 28, 0.65);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 10px;
-}
-
-.control-box h4 {
-    margin: 0 0 8px;
-    font-size: 0.95rem;
-    color: #b9d0f3;
-}
-
-.control-row {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-}
-
-.control-row label {
-    font-size: 0.86rem;
-    color: var(--muted);
-}
-
-.control-row input {
-    width: 100%;
-    box-sizing: border-box;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: #0f1a2f;
-    color: var(--text);
-    padding: 6px 8px;
-}
-
-.nudge-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 2px;
-}
-
-.nudge-btn {
-    border: 1px solid var(--border);
-    background: #16243d;
-    color: var(--text);
-    border-radius: 6px;
-    padding: 6px 10px;
-    cursor: pointer;
-    font-size: 0.85rem;
-}
-
-.nudge-btn:hover {
-    background: #223657;
-}
-
-h2 {
-    margin: 0 0 8px;
-    color: #d8e6ff;
-}
-
-.hint {
-    margin: 0 0 10px;
-    color: var(--muted);
-    font-size: 0.92rem;
-}
-
-.btn-action {
-    background: var(--primary);
-    color: white;
-    border: none;
-    padding: 10px 16px;
-    border-radius: 6px;
-    font-weight: bold;
-    cursor: pointer;
-    font-size: 0.95rem;
-    transition: background 0.2s;
-    margin-right: 8px;
-    margin-bottom: 8px;
-}
-
-.btn-action:hover {
-    background: var(--primary-dark);
-}
-
-input[type="file"] {
-    background: #101c30;
-    padding: 8px;
-    border-radius: 4px;
-    color: white;
-    border: 1px solid var(--border);
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.result-wrap {
-    background: #0a1324;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 10px;
-    overflow: auto;
-    max-height: 420px;
-}
-
-canvas {
-    display: block;
-    max-width: 100%;
-    height: auto;
-    background: #02050b;
-}
-
-.status {
-    margin: 8px 0 0;
-    color: #9fc2ff;
-    font-size: 0.9rem;
-}
-
-.preview-label {
-    margin: 0;
-    font-size: 0.84rem;
-    color: var(--muted);
-}
-
-.preview-stage {
-    position: relative;
-    min-height: 100%;
-}
+        .controls-info { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 8px; border-radius: 4px; font-size: 0.75rem; pointer-events: none; line-height: 1.4; }
     </style>
 </head>
 <body>
 
-<div id="stitcher-zone" class="tool-card">
-    <h2>Fusion de deux screenshots</h2>
-    <p class="hint">Mode rapide pour grands screenshots: charge les 2 images, ajuste la superposition et le decalage vertical de l'image droite, puis genere le PNG final.</p>
+<div id="stitcher-view" class="stitcher-view">
+    <div class="stitcher-card">
+        <h2 class="stitcher-title">Fusion de deux screenshots</h2>
+        <p class="stitcher-hint">Charge les 2 images, ajuste la superposition et le decalage de l'image droite, puis clique sur Generer + appliquer pour passer a la carte joueurs.</p>
 
-    <div class="controls-grid">
-        <div class="control-box">
-            <h4>Fichiers</h4>
-            <div class="control-row"><label for="up-left">Fichier</label><input type="file" id="up-left" accept="image/*"></div>
-            <div class="control-row"><label for="up-right">Fichier</label><input type="file" id="up-right" accept="image/*"></div>
-            <p class="preview-label">Image gauche ancree a X=0, Y=0 pour simplifier l'alignement.</p>
-        </div>
-        <div class="control-box">
-            <h4>Alignement rapide</h4>
-            <div class="control-row"><label for="overlap">Superposition (px)</label><input type="number" id="overlap" value="0" step="1"></div>
-            <div class="control-row"><label for="x-right">X image droite</label><input type="number" id="x-right" value="0" step="1"></div>
-            <div class="nudge-row">
-                <button type="button" class="nudge-btn" data-axis="x" data-nudge="-10">X -10</button>
-                <button type="button" class="nudge-btn" data-axis="x" data-nudge="-1">X -1</button>
-                <button type="button" class="nudge-btn" data-axis="x" data-nudge="1">X +1</button>
-                <button type="button" class="nudge-btn" data-axis="x" data-nudge="10">X +10</button>
+        <div class="stitcher-grid">
+            <div class="stitch-box">
+                <h3>Fichiers</h3>
+                <div class="stitch-row"><label for="up-left">Image gauche</label><input type="file" id="up-left" accept="image/*"></div>
+                <div class="stitch-row"><label for="up-right">Image droite</label><input type="file" id="up-right" accept="image/*"></div>
+                <div class="stitch-row"><label for="preview-scale">Zoom apercu (%)</label><input type="number" id="preview-scale" value="22" min="5" max="100" step="1"></div>
             </div>
-            <div class="control-row"><label for="y-right">Y image droite</label><input type="number" id="y-right" value="0" step="1"></div>
-            <div class="nudge-row">
-                <button type="button" class="nudge-btn" data-axis="y" data-nudge="-10">Y -10</button>
-                <button type="button" class="nudge-btn" data-axis="y" data-nudge="-1">Y -1</button>
-                <button type="button" class="nudge-btn" data-axis="y" data-nudge="1">Y +1</button>
-                <button type="button" class="nudge-btn" data-axis="y" data-nudge="10">Y +10</button>
+            <div class="stitch-box">
+                <h3>Alignement</h3>
+                <div class="stitch-row"><label for="overlap">Superposition (px)</label><input type="number" id="overlap" value="0" step="1"></div>
+                <div class="stitch-row"><label for="x-right">X image droite</label><input type="number" id="x-right" value="0" step="1"></div>
+                <div class="nudge-row">
+                    <button type="button" class="nudge-btn" data-axis="x" data-nudge="-10">X -10</button>
+                    <button type="button" class="nudge-btn" data-axis="x" data-nudge="-1">X -1</button>
+                    <button type="button" class="nudge-btn" data-axis="x" data-nudge="1">X +1</button>
+                    <button type="button" class="nudge-btn" data-axis="x" data-nudge="10">X +10</button>
+                </div>
+                <div class="stitch-row"><label for="y-right">Y image droite</label><input type="number" id="y-right" value="0" step="1"></div>
+                <div class="nudge-row">
+                    <button type="button" class="nudge-btn" data-axis="y" data-nudge="-10">Y -10</button>
+                    <button type="button" class="nudge-btn" data-axis="y" data-nudge="-1">Y -1</button>
+                    <button type="button" class="nudge-btn" data-axis="y" data-nudge="1">Y +1</button>
+                    <button type="button" class="nudge-btn" data-axis="y" data-nudge="10">Y +10</button>
+                </div>
             </div>
-            <div class="control-row" style="margin-top:8px;"><label for="preview-scale">Zoom apercu (%)</label><input type="number" id="preview-scale" value="22" min="5" max="100" step="1"></div>
+            <div class="stitch-box">
+                <h3>Actions</h3>
+                <div class="stitch-actions">
+                    <button type="button" class="btn-small" id="btn-generate">Generer + appliquer</button>
+                    <button type="button" class="btn-small" id="btn-download">Telecharger</button>
+                    <button type="button" class="btn-small btn-muted" id="btn-reset">Reset alignement</button>
+                </div>
+                <p class="stitch-status" id="stitch-status">Charge 2 images puis genere le fond.</p>
+            </div>
         </div>
-        <div class="control-box">
-            <h4>Fusion</h4>
-            <button class="btn-action" id="btn-generate">Generer l'image fusionnee</button>
-            <button class="btn-action" id="btn-download">Telecharger l'image</button>
-            <button class="btn-action" id="btn-reset">Reinitialiser alignement</button>
-            <p class="status" id="status">Aucune image fusionnee pour le moment.</p>
-        </div>
-    </div>
 
-    <div class="stitch-container">
-        <div class="crop-window" id="preview-window">
+        <div class="preview-wrap">
             <div class="preview-stage" id="preview-stage">
-                <img id="img-left" alt="Apercu image gauche">
-                <img id="img-right" alt="Apercu image droite">
+                <img id="img-left" alt="Apercu gauche">
+                <img id="img-right" alt="Apercu droite">
             </div>
         </div>
     </div>
 </div>
 
-<div class="tool-card">
-    <h2>Resultat</h2>
-    <div class="result-wrap"><canvas id="mapCanvas"></canvas></div>
+<div id="planner-view" class="planner-view hidden">
+    <div class="header-nav">
+        <h1>NR1 🗺️ ALLIANCE MAP PLANNER</h1>
+        <button type="button" id="btn-open-fusion" class="btn-back">Ouvrir fusion</button>
+    </div>
+
+    <div class="search-container">
+        <input type="text" id="mapSearch" class="search-input" placeholder="🔍 Search a player by name or alias..." oninput="handleSearch(this.value)">
+        <div id="searchResults" class="search-results"></div>
+    </div>
+
+    <div class="meta-info">
+        <div class="counter" id="member-count">Players on map: 0 / 100</div>
+    </div>
+
+    <div class="map-container">
+        <canvas id="mapCanvas"></canvas>
+        <div class="controls-info">
+            🖱️ <b>Left Click & Drag:</b> Move Map / Move Pastille<br>
+            📜 <b>Mouse Wheel:</b> Zoom In / Out<br>
+            💡 <i>Double-click a pastille to delete a player</i>
+        </div>
+    </div>
 </div>
 
 <script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyA8edMWQreJMKrbS8MuowKZl58x7W5vfBU",
+        authDomain: "nr1-vikings.firebaseapp.com",
+        databaseURL: "https://nr1-vikings-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "nr1-vikings",
+        storageBucket: "nr1-vikings.firebasestorage.app",
+        messagingSenderId: "1042283854890",
+        appId: "1:1042283854890:web:84414b7afed626191ed753"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const storage = firebase.storage();
+    const allianceRef = db.ref('alliance_database');
+    const mapBackgroundRef = db.ref('map_background/current');
+
     const canvas = document.getElementById('mapCanvas');
     const ctx = canvas.getContext('2d');
-    const statusEl = document.getElementById('status');
+    const stitchStatusEl = document.getElementById('stitch-status');
+    const stitcherView = document.getElementById('stitcher-view');
+    const plannerView = document.getElementById('planner-view');
+    const openFusionBtn = document.getElementById('btn-open-fusion');
+    const isFileContext = location.protocol === 'file:';
 
-    const state = {
+    const stitchCanvas = document.createElement('canvas');
+    const stitchCtx = stitchCanvas.getContext('2d');
+    const stitchedBackground = new Image();
+    let hasBackground = false;
+
+    const stitchState = {
         overlap: 0,
         rightX: 0,
         rightY: 0,
         previewScale: 0.22
     };
 
-    const refs = {
+    const stitchRefs = {
         imgLeft: document.getElementById('img-left'),
         imgRight: document.getElementById('img-right'),
         previewStage: document.getElementById('preview-stage'),
+        overlap: document.getElementById('overlap'),
         xRight: document.getElementById('x-right'),
         yRight: document.getElementById('y-right'),
-        overlap: document.getElementById('overlap'),
         previewScale: document.getElementById('preview-scale')
     };
+
+    let allMembers = {};
+    let selectedPlayerId = null;
+    let isDraggingMap = false;
+    let isCameraInitialized = false;
+
+    let cameraX = 0, cameraY = 0; 
+    let zoom = 1; 
+    let startDragX = 0, startDragY = 0;
+
+    const MAP_SIZE = 1000; 
+    const DOT_RADIUS = 24;
+
+    function showPlannerView() {
+        stitcherView.classList.add('hidden');
+        plannerView.classList.remove('hidden');
+        setTimeout(resizeCanvas, 50);
+    }
+
+    function showStitcherView() {
+        plannerView.classList.add('hidden');
+        stitcherView.classList.remove('hidden');
+    }
+
+    function loadBackgroundFromUrl(url) {
+        return new Promise((resolve, reject) => {
+            stitchedBackground.onload = () => {
+                hasBackground = true;
+                draw();
+                resolve(true);
+            };
+            stitchedBackground.onerror = () => reject(new Error('Image background load failed'));
+            stitchedBackground.src = url;
+        });
+    }
+
+    function canvasToBlob(canvasEl) {
+        return new Promise((resolve, reject) => {
+            canvasEl.toBlob((blob) => {
+                if (blob) resolve(blob);
+                else reject(new Error('Canvas export failed'));
+            }, 'image/png');
+        });
+    }
+
+    async function saveMergedBackgroundToFirebase() {
+        if (isFileContext) {
+            throw new Error('Firebase Storage is unavailable from file://. Serve this page from http://localhost or https:// to save the background.');
+        }
+
+        const blob = await canvasToBlob(stitchCanvas);
+        const path = 'map_backgrounds/fond-plan-fusionne.png';
+        const fileRef = storage.ref(path);
+        await fileRef.put(blob, { contentType: 'image/png' });
+        const downloadURL = await fileRef.getDownloadURL();
+
+        await mapBackgroundRef.set({
+            url: downloadURL,
+            storagePath: path,
+            updatedAt: firebase.database.ServerValue.TIMESTAMP
+        });
+
+        return downloadURL;
+    }
+
+    async function initializeBackgroundFromFirebase() {
+        if (isFileContext) {
+            stitchStatusEl.textContent = 'Ouvre cette page via Live Server ou http://localhost pour activer Firebase Storage.';
+            showStitcherView();
+            return;
+        }
+
+        try {
+            const snap = await mapBackgroundRef.once('value');
+            const bg = snap.val();
+
+            if (bg && bg.url) {
+                await loadBackgroundFromUrl(bg.url);
+                showPlannerView();
+                return;
+            }
+        } catch (err) {
+            console.error('Background init error:', err);
+        }
+
+        showStitcherView();
+    }
 
     function attachUploader(inputId, imgEl, side) {
         const input = document.getElementById(inputId);
@@ -288,131 +280,469 @@ canvas {
 
             const url = URL.createObjectURL(file);
             imgEl.onload = () => {
-                renderPreview();
-                statusEl.textContent = "Image " + (side === 'left' ? 'gauche' : 'droite') + " chargee: " + imgEl.naturalWidth + "x" + imgEl.naturalHeight;
+                renderStitchPreview();
+                stitchStatusEl.textContent = 'Image ' + (side === 'left' ? 'gauche' : 'droite') + ' chargee: ' + imgEl.naturalWidth + 'x' + imgEl.naturalHeight;
+                URL.revokeObjectURL(url);
             };
             imgEl.src = url;
         });
     }
 
-    function parseInputs() {
-        state.overlap = parseInt(refs.overlap.value || '0', 10);
-        state.rightX = parseInt(refs.xRight.value || '0', 10);
-        state.rightY = parseInt(refs.yRight.value || '0', 10);
+    function parseStitchInputs() {
+        stitchState.overlap = parseInt(stitchRefs.overlap.value || '0', 10);
+        stitchState.rightX = parseInt(stitchRefs.xRight.value || '0', 10);
+        stitchState.rightY = parseInt(stitchRefs.yRight.value || '0', 10);
 
-        const scalePercent = parseInt(refs.previewScale.value || '22', 10);
+        const scalePercent = parseInt(stitchRefs.previewScale.value || '22', 10);
         const safePercent = Math.max(5, Math.min(100, scalePercent));
-        refs.previewScale.value = safePercent;
-        state.previewScale = safePercent / 100;
+        stitchRefs.previewScale.value = safePercent;
+        stitchState.previewScale = safePercent / 100;
     }
 
-    function renderPreview() {
-        parseInputs();
+    function renderStitchPreview() {
+        parseStitchInputs();
 
-        const i1 = refs.imgLeft;
-        const i2 = refs.imgRight;
-        const scaledLeftWidth = i1.naturalWidth ? i1.naturalWidth * state.previewScale : 0;
-        const scaledRightWidth = i2.naturalWidth ? i2.naturalWidth * state.previewScale : 0;
-        const scaledLeftHeight = i1.naturalHeight ? i1.naturalHeight * state.previewScale : 0;
-        const scaledRightHeight = i2.naturalHeight ? i2.naturalHeight * state.previewScale : 0;
-        const scaledOverlap = state.overlap * state.previewScale;
-        const scaledRightX = (i1.naturalWidth - state.overlap + state.rightX) * state.previewScale;
-        const scaledRightY = state.rightY * state.previewScale;
+        const i1 = stitchRefs.imgLeft;
+        const i2 = stitchRefs.imgRight;
+
+        const scaledLeftWidth = i1.naturalWidth ? i1.naturalWidth * stitchState.previewScale : 0;
+        const scaledRightWidth = i2.naturalWidth ? i2.naturalWidth * stitchState.previewScale : 0;
+        const scaledLeftHeight = i1.naturalHeight ? i1.naturalHeight * stitchState.previewScale : 0;
+        const scaledRightHeight = i2.naturalHeight ? i2.naturalHeight * stitchState.previewScale : 0;
+
+        const scaledRightX = (i1.naturalWidth - stitchState.overlap + stitchState.rightX) * stitchState.previewScale;
+        const scaledRightY = stitchState.rightY * stitchState.previewScale;
 
         const minX = Math.min(0, scaledRightX);
         const minY = Math.min(0, scaledRightY);
         const maxX = Math.max(scaledLeftWidth, scaledRightX + scaledRightWidth);
         const maxY = Math.max(scaledLeftHeight, scaledRightY + scaledRightHeight);
 
-        refs.previewStage.style.width = Math.max(1, Math.ceil(maxX - minX)) + 'px';
-        refs.previewStage.style.height = Math.max(1, Math.ceil(maxY - minY)) + 'px';
+        stitchRefs.previewStage.style.width = Math.max(1, Math.ceil(maxX - minX)) + 'px';
+        stitchRefs.previewStage.style.height = Math.max(1, Math.ceil(maxY - minY)) + 'px';
 
-        refs.imgLeft.style.transformOrigin = 'top left';
-        refs.imgRight.style.transformOrigin = 'top left';
+        stitchRefs.imgLeft.style.left = (-minX) + 'px';
+        stitchRefs.imgLeft.style.top = (-minY) + 'px';
+        stitchRefs.imgLeft.style.transform = 'scale(' + stitchState.previewScale + ')';
 
-        refs.imgLeft.style.left = (-minX) + 'px';
-        refs.imgLeft.style.top = (-minY) + 'px';
-        refs.imgLeft.style.transform = 'scale(' + state.previewScale + ')';
-
-        refs.imgRight.style.left = (scaledRightX - minX) + 'px';
-        refs.imgRight.style.top = (scaledRightY - minY) + 'px';
-        refs.imgRight.style.transform = 'scale(' + state.previewScale + ')';
-
-        statusEl.textContent = 'Apercu mis a jour. Superposition: ' + state.overlap + ' px, X droite: ' + state.rightX + ' px, Y droite: ' + state.rightY + ' px.';
+        stitchRefs.imgRight.style.left = (scaledRightX - minX) + 'px';
+        stitchRefs.imgRight.style.top = (scaledRightY - minY) + 'px';
+        stitchRefs.imgRight.style.transform = 'scale(' + stitchState.previewScale + ')';
     }
 
-    function buildMergedCanvas() {
-        const i1 = refs.imgLeft;
-        const i2 = refs.imgRight;
+    async function buildMergedBackground() {
+        const i1 = stitchRefs.imgLeft;
+        const i2 = stitchRefs.imgRight;
 
         if (!i1.naturalWidth || !i2.naturalWidth) {
-            statusEl.textContent = 'Charge les 2 screenshots avant de generer la fusion.';
+            stitchStatusEl.textContent = 'Charge les 2 images avant de generer la fusion.';
             return false;
         }
 
-        parseInputs();
+        parseStitchInputs();
 
         const leftX = 0;
         const leftY = 0;
-        const rightX = i1.naturalWidth - state.overlap + state.rightX;
-        const rightY = state.rightY;
+        const rightX = i1.naturalWidth - stitchState.overlap + stitchState.rightX;
+        const rightY = stitchState.rightY;
 
         const minX = Math.min(leftX, rightX);
         const minY = Math.min(leftY, rightY);
         const maxX = Math.max(leftX + i1.naturalWidth, rightX + i2.naturalWidth);
         const maxY = Math.max(leftY + i1.naturalHeight, rightY + i2.naturalHeight);
 
-        canvas.width = maxX - minX;
-        canvas.height = maxY - minY;
+        stitchCanvas.width = maxX - minX;
+        stitchCanvas.height = maxY - minY;
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(i1, leftX - minX, leftY - minY);
-        ctx.drawImage(i2, rightX - minX, rightY - minY);
+        stitchCtx.clearRect(0, 0, stitchCanvas.width, stitchCanvas.height);
+        stitchCtx.drawImage(i1, leftX - minX, leftY - minY);
+        stitchCtx.drawImage(i2, rightX - minX, rightY - minY);
 
-        statusEl.textContent = 'Fusion generee: ' + canvas.width + ' x ' + canvas.height + ' px';
-        return true;
+        stitchStatusEl.textContent = 'Enregistrement du fond fusionne dans Firebase...';
+
+        try {
+            const localUrl = stitchCanvas.toDataURL('image/png');
+            await loadBackgroundFromUrl(localUrl);
+            await saveMergedBackgroundToFirebase();
+            stitchStatusEl.textContent = 'Fond fusionne enregistre dans Firebase et applique.';
+            showPlannerView();
+            return true;
+        } catch (err) {
+            console.error('Background save error:', err);
+            stitchStatusEl.textContent = 'Erreur de sauvegarde Firebase. Verifie les regles Storage/Database.';
+            return false;
+        }
     }
 
-    function downloadMerged() {
-        if (!canvas.width || !canvas.height) {
-            statusEl.textContent = 'Genere d abord la fusion avant de telecharger.';
+    function downloadMergedBackground() {
+        if (!stitchCanvas.width || !stitchCanvas.height) {
+            stitchStatusEl.textContent = 'Genere la fusion avant de telecharger.';
             return;
         }
 
         const link = document.createElement('a');
-        link.href = canvas.toDataURL('image/png');
-        link.download = 'fusion-screenshots.png';
+        link.href = stitchCanvas.toDataURL('image/png');
+        link.download = 'fond-plan-fusionne.png';
         link.click();
     }
 
     function nudgeRight(axis, amount) {
         if (axis === 'x') {
-            state.rightX += amount;
-            refs.xRight.value = state.rightX;
+            stitchState.rightX += amount;
+            stitchRefs.xRight.value = stitchState.rightX;
         } else {
-            state.rightY += amount;
-            refs.yRight.value = state.rightY;
+            stitchState.rightY += amount;
+            stitchRefs.yRight.value = stitchState.rightY;
         }
-        renderPreview();
+        renderStitchPreview();
     }
 
     function resetAlignment() {
-        state.overlap = 0;
-        state.rightX = 0;
-        state.rightY = 0;
-        refs.overlap.value = 0;
-        refs.xRight.value = 0;
-        refs.yRight.value = 0;
-        renderPreview();
+        stitchState.overlap = 0;
+        stitchState.rightX = 0;
+        stitchState.rightY = 0;
+        stitchRefs.overlap.value = 0;
+        stitchRefs.xRight.value = 0;
+        stitchRefs.yRight.value = 0;
+        renderStitchPreview();
     }
 
-    attachUploader('up-left', refs.imgLeft, 'left');
-    attachUploader('up-right', refs.imgRight, 'right');
+    function resizeCanvas() {
+        if (plannerView.classList.contains('hidden')) return;
 
-    refs.overlap.addEventListener('input', renderPreview);
-    refs.xRight.addEventListener('input', renderPreview);
-    refs.yRight.addEventListener('input', renderPreview);
-    refs.previewScale.addEventListener('input', renderPreview);
+        canvas.width = canvas.parentElement.clientWidth;
+        canvas.height = canvas.parentElement.clientHeight;
+        
+        const minZoomX = canvas.width / MAP_SIZE;
+        const minZoomY = canvas.height / MAP_SIZE;
+        const idealMinZoom = Math.max(minZoomX, minZoomY);
+        
+        if (zoom < idealMinZoom || !isCameraInitialized) {
+            zoom = idealMinZoom;
+        }
+
+        if (!isCameraInitialized && canvas.width > 0) {
+            centerCamera();
+        }
+        
+        constrainCamera();
+        draw();
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    function centerCamera() {
+        cameraX = canvas.width / 2 - (MAP_SIZE / 2) * zoom;
+        cameraY = canvas.height / 2 - (MAP_SIZE / 2) * zoom;
+        isCameraInitialized = true;
+    }
+
+    function constrainCamera() {
+        const worldWidthOnScreen = MAP_SIZE * zoom;
+        const worldHeightOnScreen = MAP_SIZE * zoom;
+
+        if (worldWidthOnScreen <= canvas.width) {
+            cameraX = (canvas.width - worldWidthOnScreen) / 2;
+        } else {
+            cameraX = Math.min(0, Math.max(canvas.width - worldWidthOnScreen, cameraX));
+        }
+
+        if (worldHeightOnScreen <= canvas.height) {
+            cameraY = (canvas.height - worldHeightOnScreen) / 2;
+        } else {
+            cameraY = Math.min(0, Math.max(canvas.height - worldHeightOnScreen, cameraY));
+        }
+    }
+
+    allianceRef.on('value', snap => {
+        const rawData = snap.val() || {};
+        allMembers = {};
+
+        const sortedIds = Object.keys(rawData).sort((a, b) => {
+            return rawData[a].name.localeCompare(rawData[b].name);
+        });
+
+        const totalPlayers = sortedIds.length;
+        document.getElementById('member-count').innerText = `Players on map: ${totalPlayers} / 100`;
+
+        const playersPerLine = Math.max(15, Math.ceil(totalPlayers / 3));
+
+        sortedIds.forEach((id, index) => {
+            const m = rawData[id];
+            
+            if (m.x === undefined || m.y === undefined || m.x === null || m.y === null) {
+                const row = Math.floor(index / playersPerLine); 
+                const col = index % playersPerLine;            
+
+                m.x = 60 + (col * 55); 
+                m.y = 60 + (row * 60);
+
+                if (m.x > 940) {
+                    m.x = 60 + ((col % 15) * 55);
+                    m.y += 180;
+                }
+            }
+
+            allMembers[id] = m;
+        });
+
+        if (!isCameraInitialized && canvas.width > 0) {
+            const minZoomX = canvas.width / MAP_SIZE;
+            const minZoomY = canvas.height / MAP_SIZE;
+            zoom = Math.max(minZoomX, minZoomY);
+            centerCamera();
+        }
+        draw();
+    });
+
+    // LOGIQUE DE RECHERCHE DYNAMIQUE
+    function handleSearch(val) {
+        const container = document.getElementById('searchResults');
+        container.innerHTML = '';
+        
+        if (!val.trim()) {
+            container.style.display = 'none';
+            return;
+        }
+
+        const query = val.toLowerCase();
+        let matches = 0;
+
+        Object.keys(allMembers).forEach(id => {
+            const m = allMembers[id];
+            const nameMatch = m.name.toLowerCase().includes(query);
+            const aliasMatch = m.aliases && m.aliases.toLowerCase().includes(query);
+
+            if (nameMatch || aliasMatch) {
+                matches++;
+                const div = document.createElement('div');
+                div.className = 'search-item';
+                div.textContent = m.aliases ? `${m.name} (${m.aliases})` : m.name;
+                div.onclick = () => selectAndFocusPlayer(id);
+                container.appendChild(div);
+            }
+        });
+
+        container.style.display = matches > 0 ? 'block' : 'none';
+    }
+
+    function selectAndFocusPlayer(id) {
+        selectedPlayerId = id;
+        const m = allMembers[id];
+        
+        // Cacher la liste de recherche et vider le champ
+        document.getElementById('searchResults').style.display = 'none';
+        document.getElementById('mapSearch').value = '';
+
+        // Centrer la caméra sur le joueur sélectionné
+        zoom = 1.8; // Applique un zoom confortable sur la cible
+        cameraX = canvas.width / 2 - m.x * zoom;
+        cameraY = canvas.height / 2 - m.y * zoom;
+        
+        constrainCamera();
+        draw();
+    }
+
+    function gameToScreen(gx, gy) {
+        return {
+            x: gx * zoom + cameraX,
+            y: gy * zoom + cameraY
+        };
+    }
+
+    function screenToGame(sx, sy) {
+        return {
+            x: Math.round((sx - cameraX) / zoom),
+            y: Math.round((sy - cameraY) / zoom)
+        };
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const topLeft = gameToScreen(0, 0);
+        const bottomRight = gameToScreen(MAP_SIZE, MAP_SIZE);
+
+        if (hasBackground && stitchedBackground.complete) {
+            ctx.drawImage(
+                stitchedBackground,
+                topLeft.x,
+                topLeft.y,
+                bottomRight.x - topLeft.x,
+                bottomRight.y - topLeft.y
+            );
+            ctx.fillStyle = 'rgba(11, 15, 25, 0.15)';
+            ctx.fillRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+        } else {
+            ctx.fillStyle = '#0b0f19';
+            ctx.fillRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+        }
+
+        ctx.strokeStyle = 'rgba(30, 41, 55, 0.75)';
+        ctx.lineWidth = 1;
+        let step = 100 * zoom;
+        let startX = cameraX % step;
+        let startY = cameraY % step;
+        
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+        ctx.clip();
+
+        for (let x = startX; x < canvas.width; x += step) {
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+        }
+        for (let y = startY; y < canvas.height; y += step) {
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+        }
+        ctx.restore();
+
+        ctx.strokeStyle = 'var(--primary)';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+
+        Object.keys(allMembers).forEach(id => {
+            const m = allMembers[id];
+            const pos = gameToScreen(m.x, m.y);
+
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, DOT_RADIUS, 0, Math.PI * 2);
+            
+            // Pastilles rouges, avec une nuance plus claire pour le joueur selectionne.
+            ctx.fillStyle = (id === selectedPlayerId) ? '#ef4444' : '#b91c1c';
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 11px sans-serif';
+            ctx.textAlign = 'center';
+            const displayName = m.aliases ? `${m.name} (${m.aliases})` : m.name;
+            ctx.fillText(displayName, pos.x, pos.y - 12);
+
+            ctx.fillStyle = '#9ca3af';
+            ctx.font = '9px sans-serif';
+            ctx.fillText(`[${m.x}, ${m.y}]`, pos.x, pos.y + 22);
+        });
+    }
+
+    canvas.addEventListener('mousedown', e => {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        // Fermer le menu de recherche si on clique sur la carte
+        document.getElementById('searchResults').style.display = 'none';
+
+        selectedPlayerId = null;
+        Object.keys(allMembers).forEach(id => {
+            const m = allMembers[id];
+            const pos = gameToScreen(m.x, m.y);
+            const dist = Math.hypot(mouseX - pos.x, mouseY - pos.y);
+            if (dist <= DOT_RADIUS + 12) { 
+                selectedPlayerId = id;
+            }
+        });
+
+        if (!selectedPlayerId) {
+            isDraggingMap = true;
+            startDragX = mouseX - cameraX;
+            startDragY = mouseY - cameraY;
+        }
+        draw();
+    });
+
+    // Variable pour suivre si le joueur a été déplacé pendant le drag
+    let hasDraggedPlayer = false;
+
+    canvas.addEventListener('mousemove', e => {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        if (selectedPlayerId && (e.buttons === 1)) {
+            hasDraggedPlayer = true;
+            const gamePos = screenToGame(mouseX, mouseY);
+            gamePos.x = Math.max(0, Math.min(MAP_SIZE, gamePos.x));
+            gamePos.y = Math.max(0, Math.min(MAP_SIZE, gamePos.y));
+            
+            allMembers[selectedPlayerId].x = gamePos.x;
+            allMembers[selectedPlayerId].y = gamePos.y;
+            draw();
+        } else if (isDraggingMap) {
+            cameraX = mouseX - startDragX;
+            cameraY = mouseY - startDragY;
+            constrainCamera();
+            draw();
+        }
+    });
+
+    window.addEventListener('mouseup', () => {
+        if (selectedPlayerId && hasDraggedPlayer) {
+            allianceRef.child(selectedPlayerId).update({
+                x: allMembers[selectedPlayerId].x,
+                y: allMembers[selectedPlayerId].y
+            });
+        }
+        // On ne remet plus selectedPlayerId à null pour maintenir la couleur bleue visible au clic simple
+        hasDraggedPlayer = false;
+        isDraggingMap = false;
+    });
+
+    canvas.addEventListener('wheel', e => {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        const gamePosBefore = screenToGame(mouseX, mouseY);
+
+        if (e.deltaY < 0) zoom *= 1.1;
+        else zoom /= 1.1;
+        
+        const minZoomX = canvas.width / MAP_SIZE;
+        const minZoomY = canvas.height / MAP_SIZE;
+        const minZoom = Math.max(minZoomX, minZoomY);
+        
+        zoom = Math.max(minZoom, Math.min(5, zoom));
+
+        cameraX = mouseX - gamePosBefore.x * zoom;
+        cameraY = mouseY - gamePosBefore.y * zoom;
+        
+        constrainCamera();
+        draw();
+    });
+
+    canvas.addEventListener('dblclick', e => {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        Object.keys(allMembers).forEach(id => {
+            const m = allMembers[id];
+            const pos = gameToScreen(m.x, m.y);
+            if (Math.hypot(mouseX - pos.x, mouseY - pos.y) <= DOT_RADIUS + 12) {
+                if (confirm(`Delete ${m.name} from database?`)) {
+                    allianceRef.child(id).remove();
+                }
+            }
+        });
+    });
+
+    // Masquer les résultats de recherche si on clique à l'extérieur
+    document.addEventListener('click', e => {
+        if (!e.target.closest('.search-container')) {
+            document.getElementById('searchResults').style.display = 'none';
+        }
+    });
+
+    attachUploader('up-left', stitchRefs.imgLeft, 'left');
+    attachUploader('up-right', stitchRefs.imgRight, 'right');
+
+    stitchRefs.overlap.addEventListener('input', renderStitchPreview);
+    stitchRefs.xRight.addEventListener('input', renderStitchPreview);
+    stitchRefs.yRight.addEventListener('input', renderStitchPreview);
+    stitchRefs.previewScale.addEventListener('input', renderStitchPreview);
 
     document.querySelectorAll('.nudge-btn').forEach((btn) => {
         btn.addEventListener('click', () => {
@@ -422,18 +752,39 @@ canvas {
         });
     });
 
-    document.getElementById('btn-generate').addEventListener('click', buildMergedCanvas);
+    document.getElementById('btn-generate').addEventListener('click', buildMergedBackground);
     document.getElementById('btn-download').addEventListener('click', () => {
-        const ready = canvas.width > 0 && canvas.height > 0;
-        if (!ready) {
-            const built = buildMergedCanvas();
-            if (!built) return;
+        if (!stitchCanvas.width || !stitchCanvas.height) {
+            const i1 = stitchRefs.imgLeft;
+            const i2 = stitchRefs.imgRight;
+            if (!i1.naturalWidth || !i2.naturalWidth) {
+                stitchStatusEl.textContent = 'Charge les 2 images avant de telecharger.';
+                return;
+            }
+
+            parseStitchInputs();
+            const leftX = 0;
+            const leftY = 0;
+            const rightX = i1.naturalWidth - stitchState.overlap + stitchState.rightX;
+            const rightY = stitchState.rightY;
+            const minX = Math.min(leftX, rightX);
+            const minY = Math.min(leftY, rightY);
+            const maxX = Math.max(leftX + i1.naturalWidth, rightX + i2.naturalWidth);
+            const maxY = Math.max(leftY + i1.naturalHeight, rightY + i2.naturalHeight);
+
+            stitchCanvas.width = maxX - minX;
+            stitchCanvas.height = maxY - minY;
+            stitchCtx.clearRect(0, 0, stitchCanvas.width, stitchCanvas.height);
+            stitchCtx.drawImage(i1, leftX - minX, leftY - minY);
+            stitchCtx.drawImage(i2, rightX - minX, rightY - minY);
         }
-        downloadMerged();
+        downloadMergedBackground();
     });
     document.getElementById('btn-reset').addEventListener('click', resetAlignment);
+    openFusionBtn.addEventListener('click', showStitcherView);
 
-    renderPreview();
+    renderStitchPreview();
+    initializeBackgroundFromFirebase();
 </script>
 </body>
 </html>
