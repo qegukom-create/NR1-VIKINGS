@@ -149,6 +149,9 @@
         appId: "1:1042283854890:web:84414b7afed626191ed753"
     };
 
+    // Mets cette valeur a true seulement quand Firebase Storage est configure (regles + CORS).
+    const ENABLE_BACKGROUND_STORAGE = false;
+
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const storage = firebase.storage();
@@ -231,6 +234,10 @@
     }
 
     async function saveMergedBackgroundToFirebase() {
+        if (!ENABLE_BACKGROUND_STORAGE) {
+            throw new Error('Firebase image archiving is disabled in configuration.');
+        }
+
         if (isFileContext) {
             throw new Error('Firebase Storage is unavailable from file:// context.');
         }
@@ -342,6 +349,8 @@
 
             if (isFileContext) {
                 stitchStatusEl.textContent = 'Fond applique localement. Pour sauvegarder Firebase, ouvre la page via http(s).';
+            } else if (!ENABLE_BACKGROUND_STORAGE) {
+                stitchStatusEl.textContent = 'Fond applique localement. Archivage Firebase desactive (ENABLE_BACKGROUND_STORAGE=false).';
             } else {
                 stitchStatusEl.textContent = 'Sauvegarde du fond dans Firebase...';
                 await saveMergedBackgroundToFirebase();
