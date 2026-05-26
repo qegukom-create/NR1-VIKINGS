@@ -151,6 +151,8 @@
     // Sauvegarde du fond dans Realtime Database en base64. A garder moderee si l'image est volumineuse.
     const ENABLE_BACKGROUND_ARCHIVE = true;
     const MAX_BACKGROUND_DATA_URL_LENGTH = 7_500_000;
+    const ARCHIVE_MIN_SCALE = 0.35;
+    const ARCHIVE_MIN_QUALITY = 0.45;
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
@@ -223,21 +225,62 @@
         });
     }
 
+    function buildArchivedBackgroundData() {
+        const exportCanvas = document.createElement('canvas');
+        const exportCtx = exportCanvas.getContext('2d');
+
+        let scale = 1;
+        let quality = 0.92;
+        let bestDataUrl = stitchCanvas.toDataURL('image/jpeg', quality);
+        let bestWidth = stitchCanvas.width;
+        let bestHeight = stitchCanvas.height;
+
+        while (bestDataUrl.length > MAX_BACKGROUND_DATA_URL_LENGTH && scale >= ARCHIVE_MIN_SCALE) {
+            exportCanvas.width = Math.max(1, Math.round(stitchCanvas.width * scale));
+            exportCanvas.height = Math.max(1, Math.round(stitchCanvas.height * scale));
+            exportCtx.clearRect(0, 0, exportCanvas.width, exportCanvas.height);
+            exportCtx.drawImage(stitchCanvas, 0, 0, exportCanvas.width, exportCanvas.height);
+
+            quality = 0.9;
+            let candidate = exportCanvas.toDataURL('image/jpeg', quality);
+            while (candidate.length > MAX_BACKGROUND_DATA_URL_LENGTH && quality > ARCHIVE_MIN_QUALITY) {
+                quality -= 0.1;
+                candidate = exportCanvas.toDataURL('image/jpeg', quality);
+            }
+
+            bestDataUrl = candidate;
+            bestWidth = exportCanvas.width;
+            bestHeight = exportCanvas.height;
+
+            if (bestDataUrl.length <= MAX_BACKGROUND_DATA_URL_LENGTH) {
+                break;
+            }
+
+            scale -= 0.1;
+        }
+
+        if (bestDataUrl.length > MAX_BACKGROUND_DATA_URL_LENGTH) {
+            throw new Error('Merged image is still too large after compression.');
+        }
+
+        return {
+            dataUrl: bestDataUrl,
+            width: bestWidth,
+            height: bestHeight
+        };
+    }
+
     async function saveMergedBackgroundToFirebase() {
         if (isFileContext) {
             throw new Error('Realtime Database archiving is unavailable from file:// context.');
         }
 
-        const dataUrl = stitchCanvas.toDataURL('image/png');
-
-        if (dataUrl.length > MAX_BACKGROUND_DATA_URL_LENGTH) {
-            throw new Error('Merged image is too large for Realtime Database storage.');
-        }
+        const archivedBackground = buildArchivedBackgroundData();
 
         await mapBackgroundRef.set({
-            dataUrl,
-            width: stitchCanvas.width,
-            height: stitchCanvas.height,
+            dataUrl: archivedBackground.dataUrl,
+            width: archivedBackground.width,
+            height: archivedBackground.height,
             updatedAt: firebase.database.ServerValue.TIMESTAMP
         });
     }
