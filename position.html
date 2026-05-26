@@ -6,7 +6,6 @@
     <title>NR1 - Vikings Map Config</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
     
     <style>
         :root { --bg: #111827; --card: #1f2937; --accent: #10b981; --primary: #3b82f6; --danger: #ef4444; --text: #f3f4f6; }
@@ -151,9 +150,7 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    const storage = firebase.storage();
     const allianceRef = db.ref('alliance_database');
-    const mapBackgroundRef = db.ref('map_background/current');
 
     const canvas = document.getElementById('mapCanvas');
     const ctx = canvas.getContext('2d');
@@ -161,7 +158,6 @@
     const stitcherView = document.getElementById('stitcher-view');
     const plannerView = document.getElementById('planner-view');
     const openFusionBtn = document.getElementById('btn-open-fusion');
-    const isFileContext = location.protocol === 'file:';
 
     const stitchCanvas = document.createElement('canvas');
     const stitchCtx = stitchCanvas.getContext('2d');
@@ -187,6 +183,7 @@
 
     let allMembers = {};
     let selectedPlayerId = null;
+    let searchedPlayerId = null;
     let isDraggingMap = false;
     let isCameraInitialized = false;
 
@@ -218,58 +215,6 @@
             stitchedBackground.onerror = () => reject(new Error('Image background load failed'));
             stitchedBackground.src = url;
         });
-    }
-
-    function canvasToBlob(canvasEl) {
-        return new Promise((resolve, reject) => {
-            canvasEl.toBlob((blob) => {
-                if (blob) resolve(blob);
-                else reject(new Error('Canvas export failed'));
-            }, 'image/png');
-        });
-    }
-
-    async function saveMergedBackgroundToFirebase() {
-        if (isFileContext) {
-            throw new Error('Firebase Storage is unavailable from file://. Serve this page from http://localhost or https:// to save the background.');
-        }
-
-        const blob = await canvasToBlob(stitchCanvas);
-        const path = 'map_backgrounds/fond-plan-fusionne.png';
-        const fileRef = storage.ref(path);
-        await fileRef.put(blob, { contentType: 'image/png' });
-        const downloadURL = await fileRef.getDownloadURL();
-
-        await mapBackgroundRef.set({
-            url: downloadURL,
-            storagePath: path,
-            updatedAt: firebase.database.ServerValue.TIMESTAMP
-        });
-
-        return downloadURL;
-    }
-
-    async function initializeBackgroundFromFirebase() {
-        if (isFileContext) {
-            stitchStatusEl.textContent = 'Ouvre cette page via Live Server ou http://localhost pour activer Firebase Storage.';
-            showStitcherView();
-            return;
-        }
-
-        try {
-            const snap = await mapBackgroundRef.once('value');
-            const bg = snap.val();
-
-            if (bg && bg.url) {
-                await loadBackgroundFromUrl(bg.url);
-                showPlannerView();
-                return;
-            }
-        } catch (err) {
-            console.error('Background init error:', err);
-        }
-
-        showStitcherView();
     }
 
     function attachUploader(inputId, imgEl, side) {
@@ -358,18 +303,17 @@
         stitchCtx.drawImage(i1, leftX - minX, leftY - minY);
         stitchCtx.drawImage(i2, rightX - minX, rightY - minY);
 
-        stitchStatusEl.textContent = 'Enregistrement du fond fusionne dans Firebase...';
+        stitchStatusEl.textContent = 'Application du fond fusionne...';
 
         try {
             const localUrl = stitchCanvas.toDataURL('image/png');
             await loadBackgroundFromUrl(localUrl);
-            await saveMergedBackgroundToFirebase();
-            stitchStatusEl.textContent = 'Fond fusionne enregistre dans Firebase et applique.';
+            stitchStatusEl.textContent = 'Fond fusionne applique localement.';
             showPlannerView();
             return true;
         } catch (err) {
-            console.error('Background save error:', err);
-            stitchStatusEl.textContent = 'Erreur de sauvegarde Firebase. Verifie les regles Storage/Database.';
+            console.error('Background apply error:', err);
+            stitchStatusEl.textContent = 'Erreur pendant la fusion du fond.';
             return false;
         }
     }
@@ -527,6 +471,7 @@
 
     function selectAndFocusPlayer(id) {
         selectedPlayerId = id;
+        searchedPlayerId = id;
         const m = allMembers[id];
         
         // Cacher la liste de recherche et vider le champ
@@ -607,8 +552,9 @@
             ctx.beginPath();
             ctx.arc(pos.x, pos.y, DOT_RADIUS, 0, Math.PI * 2);
             
-            // Pastilles rouges, avec une nuance plus claire pour le joueur selectionne.
-            ctx.fillStyle = (id === selectedPlayerId) ? '#ef4444' : '#b91c1c';
+            // Joueur issu de la recherche en bleu, sinon pastilles rouges.
+            if (id === searchedPlayerId) ctx.fillStyle = '#3b82f6';
+            else ctx.fillStyle = (id === selectedPlayerId) ? '#ef4444' : '#b91c1c';
             ctx.fill();
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 1.5;
@@ -634,6 +580,7 @@
         // Fermer le menu de recherche si on clique sur la carte
         document.getElementById('searchResults').style.display = 'none';
 
+        searchedPlayerId = null;
         selectedPlayerId = null;
         Object.keys(allMembers).forEach(id => {
             const m = allMembers[id];
@@ -784,7 +731,7 @@
     openFusionBtn.addEventListener('click', showStitcherView);
 
     renderStitchPreview();
-    initializeBackgroundFromFirebase();
+    showStitcherView();
 </script>
 </body>
 </html>
